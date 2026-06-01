@@ -9,6 +9,7 @@ var ui: CanvasLayer
 var last_grid_camera_offset = Vector2(1.0e20, 1.0e20)
 
 func _ready():
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	make_current()
 	ui = get_tree().current_scene.get_node_or_null("UI")
 	var grid_node = get_tree().current_scene.find_child("BackgroundGrid", true)
@@ -61,11 +62,13 @@ func _process(delta):
 
 func _select_at_mouse():
 	var mouse_pos = get_global_mouse_position()
-	var cells = get_tree().get_nodes_in_group("cells")
+	var cells = ui.call("_get_registered_cells") if ui and ui.has_method("_get_registered_cells") else get_tree().get_nodes_in_group("cells")
 	var closest = null
 	var min_dist_sq = 10000.0
 	
 	for cell in cells:
+		if !is_instance_valid(cell) or cell.get("is_dying") or cell.get("pending_death"):
+			continue
 		var dist_sq = mouse_pos.distance_squared_to(cell.global_position)
 		if dist_sq < min_dist_sq:
 			min_dist_sq = dist_sq

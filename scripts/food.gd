@@ -1,12 +1,14 @@
 extends Area2D
 
 @export var energy_value: float = 50.0
+@export var is_cell_remains: bool = false
 
 @onready var visual = $Visual
 
 var rotation_speed: float = 0.0
 var current_speed: float = 0.0
 var world_manager: Node = null
+var spatial_update_timer = 0.0
 
 func _ready():
 	add_to_group("food")
@@ -20,14 +22,15 @@ func _ready():
 	# Случайная скорость вращения, скорость течения и размер
 	rotation_speed = randf_range(-1.6, 1.6)
 	current_speed = randf_range(6.0, 15.0)
+	spatial_update_timer = randf() * 0.2
 	scale = Vector2.ONE * randf_range(0.75, 1.28)
 	
 	# Настройка индивидуального оттенка зеленого и уникальной формы в шейдере
 	if visual and visual.material:
 		visual.material = visual.material.duplicate()
-		var r_val = randf_range(0.12, 0.35)
-		var g_val = randf_range(0.72, 0.96)
-		var b_val = randf_range(0.18, 0.42)
+		var r_val = randf_range(0.72, 0.98) if is_cell_remains else randf_range(0.12, 0.35)
+		var g_val = randf_range(0.12, 0.28) if is_cell_remains else randf_range(0.72, 0.96)
+		var b_val = randf_range(0.10, 0.22) if is_cell_remains else randf_range(0.18, 0.42)
 		visual.material.set_shader_parameter("base_color", Color(r_val, g_val, b_val))
 		visual.material.set_shader_parameter("shape_lobes", float(randi_range(3, 7)))
 		visual.material.set_shader_parameter("shape_roughness", randf_range(0.06, 0.16))
@@ -39,7 +42,9 @@ func _process(delta):
 	# Мягкое плавание по течению жидкости
 	var current = _sample_liquid_current(global_position, Time.get_ticks_msec() * 0.001)
 	global_position = _clamp_to_arena(global_position + current * current_speed * delta, 12.0)
-	if world_manager and world_manager.has_method("update_food_spatial"):
+	spatial_update_timer -= delta
+	if spatial_update_timer <= 0.0 and world_manager and world_manager.has_method("update_food_spatial"):
+		spatial_update_timer = 0.2
 		world_manager.update_food_spatial(self)
 
 func _sample_liquid_current(pos: Vector2, time: float) -> Vector2:
@@ -62,13 +67,25 @@ func _clamp_to_arena(pos: Vector2, margin: float) -> Vector2:
 
 func _on_body_entered(body):
 	if body.is_in_group("cells") and body.has_method("eat"):
-		if body.has_method("can_eat_floor_food") and !body.can_eat_floor_food():
+		if !can_be_eaten_by(body):
 			return
-		if body.eat(energy_value):
+		var was_eaten = false
+		if is_cell_remains and body.has_method("eat_cell_remains"):
+			was_eaten = body.eat_cell_remains(energy_value)
+		else:
+			was_eaten = body.eat(energy_value)
+		if was_eaten:
 			queue_free()
 
 func _on_area_entered(area):
 	pass
+
+func can_be_eaten_by(body) -> bool:
+	if !is_instance_valid(body):
+		return false
+	if is_cell_remains:
+		return body.has_method("can_eat_cell_remains") and body.can_eat_cell_remains()
+	return !body.has_method("can_eat_floor_food") or body.can_eat_floor_food()
 
 func _on_tree_exiting():
 	if world_manager and world_manager.has_method("unregister_food_node"):

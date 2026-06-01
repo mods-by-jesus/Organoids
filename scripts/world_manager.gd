@@ -5,6 +5,7 @@ extends Node
 
 @export var max_food = 50
 @export var initial_cells = 8
+@export var initial_worm_fraction = 0.08
 @export var food_spawn_margin = 80.0
 @export var cell_spawn_margin = 120.0
 @export var spatial_cell_size = 384.0
@@ -16,6 +17,8 @@ var food_spawn_delay = 0.2
 var next_species_id = 1
 var food_count = 0
 var all_cells = []
+var population_version = 0
+var species_stats = {}
 var cell_buckets = {}
 var food_buckets = {}
 var object_buckets = {}
@@ -50,15 +53,16 @@ func _process(delta):
 			spawn_food()
 	
 func _spawn_initial_population():
+	var guaranteed_worms = max(1, int(round(initial_cells * initial_worm_fraction)))
 	for i in range(initial_cells):
-		spawn_cell()
+		spawn_cell(i < guaranteed_worms)
 
 func spawn_food():
 	var food = food_scene.instantiate()
 	food.position = _random_position_inside_arena(food_spawn_margin)
 	get_parent().call_deferred("add_child", food)
 
-func spawn_cell():
+func spawn_cell(force_worm: bool = false):
 	var cell = cell_scene.instantiate()
 	cell.position = _random_position_inside_arena(cell_spawn_margin)
 	cell.species_id = issue_species_id()
@@ -83,6 +87,11 @@ func spawn_cell():
 	cell.genes.shape_elongation = randf_range(0.0, 1.0)
 	cell.genes.shape_spikiness = randf_range(0.0, 1.0)
 	cell.genes.shape_amoeboid = randf_range(0.0, 1.0)
+	cell.genes.shape_tendrils = randf_range(0.0, 1.0) if randf() < 0.34 else randf_range(0.0, 0.22)
+	cell.genes.shape_lobes = randf_range(0.0, 1.0) if randf() < 0.42 else randf_range(0.0, 0.25)
+	cell.genes.shape_boxy = randf_range(0.0, 1.0) if randf() < 0.16 else randf_range(0.0, 0.12)
+	cell.genes.shape_worm = randf_range(0.62, 1.0) if force_worm or randf() < 0.08 else randf_range(0.0, 0.10)
+	cell.genes.shape_spiral = randf_range(0.50, 1.0) if randf() < (0.18 if force_worm else 0.08) else randf_range(0.0, 0.12)
 	cell.genes.fear = 0.0
 	
 	get_parent().call_deferred("add_child", cell)
@@ -97,7 +106,6 @@ func make_species_name() -> String:
 
 func register_food():
 	food_count += 1
-	_register_spatial(food_buckets, null)
 
 func unregister_food():
 	food_count = max(food_count - 1, 0)
@@ -116,10 +124,15 @@ func update_food_spatial(food: Node2D):
 func register_cell(cell: Node2D):
 	if !all_cells.has(cell):
 		all_cells.append(cell)
+		population_version += 1
+		_add_species_stats(cell)
 	_register_spatial(cell_buckets, cell)
 
 func unregister_cell(cell: Node2D):
-	all_cells.erase(cell)
+	if all_cells.has(cell):
+		population_version += 1
+		all_cells.erase(cell)
+		_remove_species_stats(cell)
 	_unregister_spatial(cell_buckets, cell)
 
 func update_cell_spatial(cell: Node2D):
@@ -133,6 +146,78 @@ func get_cells_near(position: Vector2, radius: float) -> Array:
 
 func get_all_cells() -> Array:
 	return all_cells
+
+func get_population_version() -> int:
+	return population_version
+
+func get_species_stats() -> Dictionary:
+	var result = {}
+	for id in species_stats.keys():
+		result[id] = species_stats[id].duplicate(true)
+	return result
+
+func _add_species_stats(cell: Node2D):
+	if !is_instance_valid(cell):
+		return
+	var id = int(cell.get("species_id"))
+	if id <= 0:
+		return
+	if !species_stats.has(id):
+		species_stats[id] = _make_empty_species_stats(cell)
+	var stats = species_stats[id]
+	stats["count"] += 1
+	_accumulate_species_genes(stats, cell, 1.0)
+
+func _remove_species_stats(cell: Node2D):
+	if !is_instance_valid(cell):
+		return
+	var id = int(cell.get("species_id"))
+	if id <= 0 or !species_stats.has(id):
+		return
+	var stats = species_stats[id]
+	stats["count"] -= 1
+	_accumulate_species_genes(stats, cell, -1.0)
+	if stats["count"] <= 0:
+		species_stats.erase(id)
+
+func _make_empty_species_stats(cell: Node2D) -> Dictionary:
+	return {
+		"count": 0,
+		"color": cell.get("species_color"),
+		"visual_color": cell._get_visual_base_color() if cell.has_method("_get_visual_base_color") else cell.get("species_color"),
+		"name": cell.get("species_name"),
+		"elongation": 0.0,
+		"spikiness": 0.0,
+		"amoeboid": 0.0,
+		"tendrils": 0.0,
+		"lobes": 0.0,
+		"boxy": 0.0,
+		"worm": 0.0,
+		"spiral": 0.0,
+		"roughness": 0.0,
+		"asymmetry": 0.0,
+		"nucleus_size": 0.0,
+		"bioluminescence": 0.0
+	}
+
+func _accumulate_species_genes(stats: Dictionary, cell: Node2D, sign: float):
+	var cell_genes = cell.get("genes")
+	if typeof(cell_genes) != TYPE_DICTIONARY:
+		return
+	stats["elongation"] += cell_genes.get("shape_elongation", 0.0) * sign
+	stats["spikiness"] += cell_genes.get("shape_spikiness", 0.0) * sign
+	stats["amoeboid"] += cell_genes.get("shape_amoeboid", 0.0) * sign
+	stats["tendrils"] += cell_genes.get("shape_tendrils", 0.0) * sign
+	stats["lobes"] += cell_genes.get("shape_lobes", 0.0) * sign
+	stats["boxy"] += cell_genes.get("shape_boxy", 0.0) * sign
+	stats["worm"] += cell_genes.get("shape_worm", 0.0) * sign
+	stats["spiral"] += cell_genes.get("shape_spiral", 0.0) * sign
+	stats["roughness"] += cell_genes.get("membrane_roughness", 0.25) * sign
+	stats["asymmetry"] += cell_genes.get("membrane_asymmetry", 0.12) * sign
+	stats["nucleus_size"] += cell_genes.get("nucleus_size", 0.3) * sign
+	stats["bioluminescence"] += cell_genes.get("bioluminescence", 0.0) * sign
+	if sign > 0.0 and cell.has_method("_get_visual_base_color"):
+		stats["visual_color"] = cell._get_visual_base_color()
 
 func _register_spatial(buckets: Dictionary, object: Node2D):
 	if !is_instance_valid(object):

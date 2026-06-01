@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://csm6c7uumsgx7" path="res://scripts/world_manager.gd" id="4_world_script"]
 [ext_resource type="Script" uid="uid://dqg56jx4nxh5l" path="res://scripts/ui_manager.gd" id="5_ui_script"]
 [ext_resource type="Shader" uid="uid://cc6xo60blp8vh" path="res://shaders/liquid_medium.gdshader" id="7_liquid_shader"]
+[ext_resource type="AudioStream" uid="uid://bfe64aex8tq0l" path="res://sounds/underwater-ambient-loop.wav" id="8_ambient_loop"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_liquid"]
 shader = ExtResource("7_liquid_shader")
@@ -36,7 +37,7 @@ fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.5, 0)
 
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tefeu"]
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_o6xl0"]
 particle_flag_disable_z = true
 emission_shape = 3
 emission_box_extents = Vector3(4096, 4096, 1)
@@ -145,7 +146,11 @@ lifetime = 60.0
 preprocess = 60.0
 visibility_rect = Rect2(-4096, -4096, 8192, 8192)
 local_coords = true
-process_material = SubResource("ParticleProcessMaterial_tefeu")
+process_material = SubResource("ParticleProcessMaterial_o6xl0")
+
+[node name="UnderwaterAmbient" type="AudioStreamPlayer" parent="." unique_id=1311093758]
+stream = ExtResource("8_ambient_loop")
+volume_db = -10.0
 
 [node name="WorldManager" type="Node" parent="." unique_id=235655544]
 script = ExtResource("4_world_script")

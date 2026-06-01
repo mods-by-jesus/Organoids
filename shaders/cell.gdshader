@@ -16,6 +16,12 @@ uniform float visual_padding = 1.65;
 uniform float shape_elongation = 0.0;
 uniform float shape_spikiness = 0.0;
 uniform float shape_amoeboid = 0.0;
+uniform float shape_tendrils = 0.0;
+uniform float shape_lobes = 0.0;
+uniform float shape_boxy = 0.0;
+uniform float shape_worm = 0.0;
+uniform float shape_spiral = 0.0;
+uniform float time_multiplier = 1.0;
 
 float membrane_wave(float angle, float time) {
 	float primary = sin(angle * 3.0 + time * pulse_speed);
@@ -25,6 +31,7 @@ float membrane_wave(float angle, float time) {
 }
 
 void fragment() {
+	float t = TIME * time_multiplier;
 	vec2 uv = (UV * 2.0 - 1.0) * visual_padding;
 	vec2 swim_dir = normalize(motion_direction + vec2(0.001, 0.0));
 	float along_motion = dot(uv, swim_dir);
@@ -33,23 +40,42 @@ void fragment() {
 	uv.x /= 1.0 + split_pressure * 0.65;
 	uv.y *= 1.0 + split_pressure * 0.22;
 
+	float worm_length = 1.0 + shape_worm * 0.35 + shape_elongation * 0.75 + shape_spiral * 0.35;
+	float worm_phase = t * (1.10 + pulse_speed * 0.24) + membrane_asymmetry * 7.0;
+	uv.x /= worm_length;
+	float worm_bend = sin(uv.x * worm_length * 7.2 + worm_phase) * shape_worm * 0.22;
+	worm_bend += sin(uv.x * worm_length * 12.0 - worm_phase * 0.72) * shape_worm * 0.055;
+	float spiral_bend = sin(uv.x * worm_length * 5.6 + t * pulse_speed * 0.72) * shape_spiral * 0.18;
+	uv.y += worm_bend + spiral_bend;
+	uv.y *= 1.0 + shape_worm * 0.10;
+
 	float angle = atan(uv.y, uv.x);
-	float r = length(uv);
-	float pulse = sin(TIME * pulse_speed + energy_ratio * 2.0) * 0.025;
-	float soft_asymmetry = sin(angle + TIME * 0.17) * membrane_asymmetry;
-	float edge_wave = membrane_wave(angle + membrane_asymmetry * 2.0, TIME) * deformation * (0.6 + membrane_roughness);
+	float round_r = length(uv);
+	float box_r = max(abs(uv.x), abs(uv.y)) * mix(1.18, 1.02, shape_lobes);
+	float r = mix(round_r, box_r, shape_boxy * 0.88);
+	float pulse = sin(t * pulse_speed + energy_ratio * 2.0) * 0.025;
+	float soft_asymmetry = sin(angle + t * 0.17) * membrane_asymmetry;
+	float edge_wave = membrane_wave(angle + membrane_asymmetry * 2.0, t) * deformation * (0.6 + membrane_roughness);
 	
 	// Вычисляем плавное непрерывное изменение формы на основе смешения генов
 	float elong_power = mix(1.0, 1.6, shape_spikiness);
 	float elong_val = shape_elongation * 0.48 * pow(abs(cos(angle)), elong_power);
 	
 	float star_val = shape_spikiness * (1.0 - shape_elongation * 0.4) * 0.28 * abs(sin(angle * 5.0));
-	
-	float amoeba_val = shape_amoeboid * 0.24 * sin(angle * 3.0 + sin(TIME * 1.35)) * cos(angle * 2.0 - TIME * 0.95);
-	
-	float spiral_val = shape_amoeboid * shape_elongation * 0.12 * sin(angle * 3.0 + TIME * pulse_speed * 1.4);
 
-	float shape_factor = 1.0 - shape_elongation * 0.28 + elong_val + star_val + amoeba_val + spiral_val;
+	float amoeba_val = shape_amoeboid * 0.24 * sin(angle * 3.0 + sin(t * 1.35)) * cos(angle * 2.0 - t * 0.95);
+
+	float spiral_val = shape_amoeboid * shape_elongation * 0.12 * sin(angle * 3.0 + t * pulse_speed * 1.4);
+	float lobe_phase = membrane_asymmetry * 5.1 + nucleus_size * 3.7;
+	float lobe_val = shape_lobes * 0.22 * (0.45 + 0.55 * abs(sin(angle * 2.0 + lobe_phase)));
+	float tendril_wave = max(sin(angle * 6.0 + lobe_phase + t * 0.18), 0.0);
+	float tendril_val = shape_tendrils * (0.16 + 0.20 * membrane_roughness) * pow(tendril_wave, 8.0);
+	tendril_val += shape_tendrils * 0.10 * pow(max(sin(angle * 9.0 - lobe_phase), 0.0), 12.0);
+	float box_val = shape_boxy * 0.08 * (1.0 - shape_amoeboid * 0.35);
+	float worm_val = shape_worm * 0.08 * sin(uv.x * worm_length * 4.6 + t * 1.25);
+	float spiral_shape_val = shape_spiral * 0.18 * sin(angle * 2.0 + round_r * 5.5 + t * pulse_speed * 0.65);
+
+	float shape_factor = 1.0 - shape_elongation * 0.28 - shape_worm * 0.22 + elong_val + star_val + amoeba_val + spiral_val + lobe_val + tendril_val + box_val + worm_val + spiral_shape_val;
 	
 	float cell_radius = (0.82 + pulse + soft_asymmetry + edge_wave) * shape_factor;
 	float edge_softness = mix(0.09, 0.035, clamp(membrane_roughness, 0.0, 1.0));
@@ -64,7 +90,7 @@ void fragment() {
 	float z = sqrt(max(0.0, 1.0 - normalized_r * normalized_r));
 	vec3 normal = normalize(vec3(uv.x * 0.9, uv.y * 0.9, z + 0.45));
 
-	float nucleus_wave = sin(TIME * pulse_speed * 1.5 + membrane_asymmetry * 8.0) * 0.025;
+	float nucleus_wave = sin(t * pulse_speed * 1.5 + membrane_asymmetry * 8.0) * 0.025;
 	float nucleus_radius = nucleus_size + nucleus_wave + energy_ratio * 0.06;
 	float nucleus = 1.0 - smoothstep(nucleus_radius - 0.055, nucleus_radius + 0.055, r);
 	float cytoplasm = smoothstep(cell_radius, 0.0, r);

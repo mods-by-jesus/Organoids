@@ -1,6 +1,8 @@
 @tool
 extends Node2D
 
+const UNDERWATER_AMBIENT_STREAM = preload("res://sounds/underwater-ambient-loop.wav")
+
 @export_group("Arena Settings")
 @export var arena_size: float = 2048.0:
 	set(value):
@@ -15,9 +17,26 @@ extends Node2D
 @onready var grid = $BackgroundGrid
 @onready var walls = $World/Walls
 @onready var visual_border = $World/VisualBorder
+@onready var underwater_ambient = $UnderwaterAmbient
 
 func _ready():
+	_start_underwater_ambient()
 	update_arena()
+
+func _start_underwater_ambient():
+	if !underwater_ambient:
+		return
+	var stream = UNDERWATER_AMBIENT_STREAM.duplicate()
+	if stream is AudioStreamWAV:
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_begin = 0
+		stream.loop_end = -1
+	underwater_ambient.stop()
+	underwater_ambient.process_mode = Node.PROCESS_MODE_ALWAYS
+	underwater_ambient.stream = stream
+	underwater_ambient.volume_db = -10.0
+	underwater_ambient.bus = "Master"
+	underwater_ambient.play()
 
 func update_arena():
 	if !is_inside_tree(): return

@@ -1,0 +1,73 @@
+[gd_scene load_steps=7 format=3 uid="uid://cell_scene"]
+
+[ext_resource type="Script" path="res://scripts/cell.gd" id="1_cell_script"]
+[ext_resource type="Shader" path="res://shaders/cell.gdshader" id="2_cell_shader"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 16.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cell"]
+shader = ExtResource("2_cell_shader")
+shader_parameter/base_color = Color(0.2, 0.8, 0.2, 1)
+shader_parameter/pulse_speed = 2.0
+shader_parameter/energy_ratio = 1.0
+shader_parameter/deformation = 0.05
+shader_parameter/visual_padding = 1.65
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_vision"]
+radius = 300.0
+
+[sub_resource type="Gradient" id="Gradient_light"]
+colors = PackedColorArray(1, 1, 1, 1, 0, 0, 0, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_light"]
+gradient = SubResource("Gradient_light")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[node name="Cell" type="RigidBody2D" groups=["cells"]]
+collision_layer = 2
+collision_mask = 3
+gravity_scale = 0.0
+lock_rotation = false
+script = ExtResource("1_cell_script")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="BodyVisual" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_cell")
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+mouse_filter = 2
+
+[node name="CoreLight" type="PointLight2D" parent="."]
+color = Color(1, 1, 1, 0.5)
+energy = 0.5
+texture = SubResource("GradientTexture2D_light")
+texture_scale = 0.5
+
+[node name="SelectionRing" type="Line2D" parent="."]
+visible = false
+points = PackedVector2Array(0, -22, 15, -15, 22, 0, 15, 15, 0, 22, -15, 15, -22, 0, -15, -15, 0, -22)
+width = 2.0
+default_color = Color(1, 1, 0, 1)
+
+[node name="PerceptionRing" type="Line2D" parent="."]
+visible = false
+z_index = 100
+z_as_relative = false
+width = 1.5
+default_color = Color(0.25, 0.85, 1, 0.42)
+
+[node name="VisionArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 6
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="VisionArea"]
+shape = SubResource("CircleShape2D_vision")
+debug_color = Color(0, 0.6, 0.7, 0.1)

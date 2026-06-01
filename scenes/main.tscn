@@ -1,0 +1,576 @@
+[gd_scene format=3 uid="uid://bapqdr8vodcdo"]
+
+[ext_resource type="Script" uid="uid://cv53rm1xrd6jx" path="res://scripts/arena.gd" id="1_arena_script"]
+[ext_resource type="Shader" uid="uid://b3xrhx8vw33r2" path="res://shaders/grid_2d.gdshader" id="2_grid_shader"]
+[ext_resource type="Script" uid="uid://bia4yourswslt" path="res://scripts/camera_2d.gd" id="3_camera_script"]
+[ext_resource type="Script" uid="uid://csm6c7uumsgx7" path="res://scripts/world_manager.gd" id="4_world_script"]
+[ext_resource type="Script" uid="uid://dqg56jx4nxh5l" path="res://scripts/ui_manager.gd" id="5_ui_script"]
+[ext_resource type="Shader" uid="uid://cc6xo60blp8vh" path="res://shaders/liquid_medium.gdshader" id="7_liquid_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_liquid"]
+shader = ExtResource("7_liquid_shader")
+shader_parameter/deep_color = Color(0.035, 0.075, 0.095, 1)
+shader_parameter/caustic_color = Color(0.18, 0.42, 0.48, 1)
+shader_parameter/flow_speed = 0.08
+shader_parameter/flow_scale = 340.0
+shader_parameter/caustic_strength = 0.16
+shader_parameter/vignette_strength = 0.45
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grid"]
+shader = ExtResource("2_grid_shader")
+shader_parameter/bg_color = Color(0.08, 0.08, 0.08, 1)
+shader_parameter/line_color = Color(0.18, 0.18, 0.18, 1)
+shader_parameter/grid_size = 256.0
+shader_parameter/line_alpha = 0.4
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_bubble"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_bubble"]
+offsets = PackedFloat32Array(0, 0.7, 0.9, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 0.1, 1, 1, 1, 0.5, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_bubble"]
+gradient = SubResource("Gradient_bubble")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tefeu"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(4096, 4096, 1)
+direction = Vector3(0, -1, 0)
+spread = 180.0
+initial_velocity_min = 2.0
+initial_velocity_max = 5.0
+angular_velocity_min = -5.0
+angular_velocity_max = 5.0
+orbit_velocity_min = -0.02
+orbit_velocity_max = 0.02
+gravity = Vector3(0, 0, 0)
+scale_min = 0.1
+scale_max = 0.4
+color = Color(0.15, 0.3, 0.4, 0.1)
+turbulence_enabled = true
+turbulence_noise_strength = 0.1
+turbulence_noise_scale = 5.0
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_N"]
+normal = Vector2(0, 1)
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_S"]
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_W"]
+normal = Vector2(1, 0)
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_E"]
+normal = Vector2(-1, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass"]
+bg_color = Color(0.05, 0.05, 0.05, 0.9)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.4, 0.4, 0.4, 0.6)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+expand_margin_left = 15.0
+expand_margin_top = 15.0
+expand_margin_right = 15.0
+expand_margin_bottom = 15.0
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_energy_bg"]
+bg_color = Color(0.08, 0.08, 0.08, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.25, 0.25, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_energy_fill"]
+bg_color = Color(0.2, 0.8, 0.35, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.1, 0.5, 0.2, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stat"]
+bg_color = Color(0.3, 0.6, 1, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="Main" type="Node2D" unique_id=782325201]
+script = ExtResource("1_arena_script")
+arena_size = 8192.0
+border_thickness = 64.0
+
+[node name="LiquidMedium" type="ColorRect" parent="." unique_id=1198607170]
+material = SubResource("ShaderMaterial_liquid")
+offset_left = -4096.0
+offset_top = -4096.0
+offset_right = 4096.0
+offset_bottom = 4096.0
+mouse_filter = 2
+
+[node name="BackgroundGrid" type="ColorRect" parent="." unique_id=527241965]
+material = SubResource("ShaderMaterial_grid")
+offset_left = -4096.0
+offset_top = -4096.0
+offset_right = 4096.0
+offset_bottom = 4096.0
+mouse_filter = 2
+
+[node name="BackgroundBubbles" type="GPUParticles2D" parent="." unique_id=1534655428]
+material = SubResource("CanvasItemMaterial_bubble")
+amount = 6400
+texture = SubResource("GradientTexture2D_bubble")
+lifetime = 60.0
+preprocess = 60.0
+visibility_rect = Rect2(-4096, -4096, 8192, 8192)
+local_coords = true
+process_material = SubResource("ParticleProcessMaterial_tefeu")
+
+[node name="WorldManager" type="Node" parent="." unique_id=235655544]
+script = ExtResource("4_world_script")
+
+[node name="World" type="Node2D" parent="." unique_id=1460766861]
+
+[node name="Walls" type="StaticBody2D" parent="World" unique_id=1995682695]
+
+[node name="Collision_Top" type="CollisionShape2D" parent="World/Walls" unique_id=1028618696]
+position = Vector2(0, -4096)
+shape = SubResource("WorldBoundaryShape2D_N")
+
+[node name="Collision_Bottom" type="CollisionShape2D" parent="World/Walls" unique_id=807230501]
+position = Vector2(0, 4096)
+shape = SubResource("WorldBoundaryShape2D_S")
+
+[node name="Collision_Left" type="CollisionShape2D" parent="World/Walls" unique_id=2043724951]
+position = Vector2(-4096, 0)
+shape = SubResource("WorldBoundaryShape2D_W")
+
+[node name="Collision_Right" type="CollisionShape2D" parent="World/Walls" unique_id=764604440]
+position = Vector2(4096, 0)
+shape = SubResource("WorldBoundaryShape2D_E")
+
+[node name="VisualBorder" type="Node2D" parent="World" unique_id=1976885329]
+
+[node name="Line_Top" type="ColorRect" parent="World/VisualBorder" unique_id=1736704762]
+offset_left = -4160.0
+offset_top = -4160.0
+offset_right = 4160.0
+offset_bottom = -4096.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="Line_Bottom" type="ColorRect" parent="World/VisualBorder" unique_id=1133150828]
+offset_left = -4160.0
+offset_top = 4096.0
+offset_right = 4160.0
+offset_bottom = 4160.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="Line_Left" type="ColorRect" parent="World/VisualBorder" unique_id=2132281952]
+offset_left = -4160.0
+offset_top = -4096.0
+offset_right = -4096.0
+offset_bottom = 4096.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="Line_Right" type="ColorRect" parent="World/VisualBorder" unique_id=471044770]
+offset_left = 4096.0
+offset_top = -4096.0
+offset_right = 4160.0
+offset_bottom = 4096.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=81173248]
+script = ExtResource("3_camera_script")
+
+[node name="MicroscopeLight" type="DirectionalLight2D" parent="." unique_id=1364232367]
+color = Color(0.9, 0.95, 1, 1)
+energy = 1.2
+height = 0.5
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=1760290142]
+script = ExtResource("5_ui_script")
+
+[node name="Control" type="Control" parent="UI" unique_id=1551470840]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TimePanel" type="PanelContainer" parent="UI/Control" unique_id=1190634636]
+layout_mode = 1
+offset_left = 30.0
+offset_top = 30.0
+offset_right = 280.0
+offset_bottom = 100.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass")
+
+[node name="VBox" type="VBoxContainer" parent="UI/Control/TimePanel" unique_id=1927313243]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Label" type="Label" parent="UI/Control/TimePanel/VBox" unique_id=1126312163]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "СКОРОСТЬ ВРЕМЕНИ: 1.0x"
+horizontal_alignment = 1
+
+[node name="TimeSlider" type="HSlider" parent="UI/Control/TimePanel/VBox" unique_id=317541551]
+layout_mode = 2
+min_value = 0.1
+max_value = 10.0
+step = 0.1
+value = 1.0
+
+[node name="SpeedButtons" type="HBoxContainer" parent="UI/Control/TimePanel/VBox" unique_id=258844319]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Btn0_5x" type="Button" parent="UI/Control/TimePanel/VBox/SpeedButtons" unique_id=1663909269]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "0.5x"
+
+[node name="Btn1x" type="Button" parent="UI/Control/TimePanel/VBox/SpeedButtons" unique_id=797535321]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "1x"
+
+[node name="Btn2x" type="Button" parent="UI/Control/TimePanel/VBox/SpeedButtons" unique_id=1138784413]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "2x"
+
+[node name="Btn5x" type="Button" parent="UI/Control/TimePanel/VBox/SpeedButtons" unique_id=1909967186]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "5x"
+
+[node name="Btn10x" type="Button" parent="UI/Control/TimePanel/VBox/SpeedButtons" unique_id=1834985049]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "10x"
+
+[node name="Panel" type="PanelContainer" parent="UI/Control" unique_id=1948343490]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -400.0
+offset_top = 40.0
+offset_right = -40.0
+offset_bottom = 610.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass")
+
+[node name="VBox" type="VBoxContainer" parent="UI/Control/Panel" unique_id=611225169]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Header" type="VBoxContainer" parent="UI/Control/Panel/VBox" unique_id=606277028]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Name" type="Label" parent="UI/Control/Panel/VBox/Header" unique_id=895390902]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "Органоид №000"
+horizontal_alignment = 1
+
+[node name="Separator" type="ColorRect" parent="UI/Control/Panel/VBox/Header" unique_id=1026657187]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.5, 0.5, 0.5, 0.6)
+
+[node name="EnergyContainer" type="VBoxContainer" parent="UI/Control/Panel/VBox" unique_id=175346288]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/EnergyContainer" unique_id=1042780731]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/EnergyContainer/HBox" unique_id=70944897]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_font_sizes/font_size = 16
+text = "ЖИЗНЕСПОСОБНОСТЬ"
+
+[node name="EnergyText" type="Label" parent="UI/Control/Panel/VBox/EnergyContainer/HBox" unique_id=632339547]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 1, 0.5, 1)
+theme_override_font_sizes/font_size = 16
+text = "150 / 200"
+
+[node name="EnergyBar" type="ProgressBar" parent="UI/Control/Panel/VBox/EnergyContainer" unique_id=603585981]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_energy_fill")
+max_value = 200.0
+value = 150.0
+show_percentage = false
+
+[node name="Stats" type="VBoxContainer" parent="UI/Control/Panel/VBox" unique_id=283875598]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Speed" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=1219989752]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/Stats/Speed" unique_id=346035637]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Speed/HBox" unique_id=1330980792]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "ПОДВИЖНОСТЬ"
+
+[node name="Value" type="Label" parent="UI/Control/Panel/VBox/Stats/Speed/HBox" unique_id=278850412]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.7, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "400"
+
+[node name="SpeedBar" type="ProgressBar" parent="UI/Control/Panel/VBox/Stats/Speed" unique_id=2076036701]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_stat")
+value = 50.0
+show_percentage = false
+
+[node name="Turn" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=855755210]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/Stats/Turn" unique_id=1973814650]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Turn/HBox" unique_id=1395364845]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "ПОВОРОТЛИВОСТЬ"
+
+[node name="Value" type="Label" parent="UI/Control/Panel/VBox/Stats/Turn/HBox" unique_id=1203770509]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.7, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "15.0"
+
+[node name="TurnBar" type="ProgressBar" parent="UI/Control/Panel/VBox/Stats/Turn" unique_id=1272242289]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_stat")
+value = 30.0
+show_percentage = false
+
+[node name="Vision" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=961231525]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/Stats/Vision" unique_id=1999622812]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Vision/HBox" unique_id=209271740]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "ВОСПРИЯТИЕ"
+
+[node name="Value" type="Label" parent="UI/Control/Panel/VBox/Stats/Vision/HBox" unique_id=1308576512]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.7, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "400"
+
+[node name="VisionBar" type="ProgressBar" parent="UI/Control/Panel/VBox/Stats/Vision" unique_id=1831458496]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_stat")
+value = 50.0
+show_percentage = false
+
+[node name="Size" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=1212641229]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/Stats/Size" unique_id=192177631]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Size/HBox" unique_id=1431870417]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "РАЗМЕР"
+
+[node name="Value" type="Label" parent="UI/Control/Panel/VBox/Stats/Size/HBox" unique_id=66115483]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.7, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "1.00"
+
+[node name="SizeBar" type="ProgressBar" parent="UI/Control/Panel/VBox/Stats/Size" unique_id=1667233567]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_stat")
+value = 40.0
+show_percentage = false
+
+[node name="Lifespan" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=825923392]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/Stats/Lifespan" unique_id=1961784999]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Lifespan/HBox" unique_id=987259415]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "ВОЗРАСТ"
+
+[node name="Value" type="Label" parent="UI/Control/Panel/VBox/Stats/Lifespan/HBox" unique_id=1330660126]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.7, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "0 / 360"
+
+[node name="LifespanBar" type="ProgressBar" parent="UI/Control/Panel/VBox/Stats/Lifespan" unique_id=1245998225]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_stat")
+show_percentage = false
+
+[node name="Phagocytosis" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=2064234268]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/Stats/Phagocytosis" unique_id=1738937000]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Phagocytosis/HBox" unique_id=1304193213]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "ФАГОЦИТОЗ"
+
+[node name="Value" type="Label" parent="UI/Control/Panel/VBox/Stats/Phagocytosis/HBox" unique_id=1235649301]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.7, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "0.00 НЕТ"
+
+[node name="PhagocytosisBar" type="ProgressBar" parent="UI/Control/Panel/VBox/Stats/Phagocytosis" unique_id=1627173194]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_stat")
+show_percentage = false
+
+[node name="Fear" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=381784716]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/Stats/Fear" unique_id=2057269428]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Fear/HBox" unique_id=1876961505]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "СТРАХ"
+
+[node name="Value" type="Label" parent="UI/Control/Panel/VBox/Stats/Fear/HBox" unique_id=1637866150]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.7, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "0.00 НЕТ"
+
+[node name="FearBar" type="ProgressBar" parent="UI/Control/Panel/VBox/Stats/Fear" unique_id=1224915196]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_stat")
+show_percentage = false
+
+[node name="Digestion" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=557530206]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="UI/Control/Panel/VBox/Stats/Digestion" unique_id=767687480]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Digestion/HBox" unique_id=702423000]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "ПЕРЕВАРИВАНИЕ"
+
+[node name="Value" type="Label" parent="UI/Control/Panel/VBox/Stats/Digestion/HBox" unique_id=1301764892]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.7, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "НЕТ"
+
+[node name="DigestionBar" type="ProgressBar" parent="UI/Control/Panel/VBox/Stats/Digestion" unique_id=1550544699]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_energy_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_stat")
+show_percentage = false
+
+[node name="Diet" type="VBoxContainer" parent="UI/Control/Panel/VBox/Stats" unique_id=2092967988]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Control/Panel/VBox/Stats/Diet" unique_id=142246263]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "ТИП ПИТАНИЯ: ТРАВОЯДНОЕ"
+horizontal_alignment = 1

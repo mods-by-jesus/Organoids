@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://food_grower_scene"]
+
+[ext_resource type="Script" path="res://scripts/food_grower.gd" id="1_food_grower_script"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_food_grower"]
+radius = 64.0
+
+[node name="FoodGrower" type="RigidBody2D" groups=["food_growers", "obstacles"]]
+collision_layer = 1
+collision_mask = 3
+gravity_scale = 0.0
+lock_rotation = false
+script = ExtResource("1_food_grower_script")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_food_grower")

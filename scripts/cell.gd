@@ -38,6 +38,11 @@ const WORM_BODY_THRESHOLD = 0.48
 const WORM_BODY_SEGMENT_COUNT = 9
 const WORM_TRAIL_MIN_DISTANCE = 1.0
 const WORM_TRAIL_MAX_POINTS = 72
+<<<<<<< Updated upstream
+=======
+const OBSTACLE_AVOID_LOOKAHEAD = 240.0
+const OBSTACLE_AVOID_MARGIN = 52.0
+>>>>>>> Stashed changes
 const SPAWN_SOUNDS = [
 	preload("res://sounds/cell-spawn.wav")
 ]
@@ -438,7 +443,11 @@ func _apply_genes():
 		body_visual.material.set_shader_parameter("shape_tendrils", genes.shape_tendrils)
 		body_visual.material.set_shader_parameter("shape_lobes", genes.shape_lobes)
 		body_visual.material.set_shader_parameter("shape_boxy", genes.shape_boxy)
+<<<<<<< Updated upstream
 		body_visual.material.set_shader_parameter("shape_worm", genes.shape_worm * 0.08)
+=======
+		body_visual.material.set_shader_parameter("shape_worm", genes.shape_worm * 0.18)
+>>>>>>> Stashed changes
 		body_visual.material.set_shader_parameter("shape_spiral", genes.shape_spiral * 0.35)
 
 func _apply_collision_shape(vis_scale: float):
@@ -585,7 +594,11 @@ func _ensure_worm_body_visual():
 		return
 	worm_body_visual = Node2D.new()
 	worm_body_visual.name = "WormBodyVisual"
+<<<<<<< Updated upstream
 	worm_body_visual.z_index = -1
+=======
+	worm_body_visual.z_index = 0
+>>>>>>> Stashed changes
 	worm_body_visual.z_as_relative = true
 	add_child(worm_body_visual)
 	move_child(worm_body_visual, 0)
@@ -701,6 +714,68 @@ func _sample_worm_trail_at_distance(target_distance: float, fallback_dir: Vector
 
 	return worm_trail_points[worm_trail_points.size() - 1] - fallback_dir * (target_distance - walked)
 
+<<<<<<< Updated upstream
+=======
+func _bend_worm_trail_from_impact(impact_position: Vector2, impact_velocity: Vector2 = Vector2.ZERO):
+	var worm_strength = _get_worm_strength()
+	if worm_strength <= 0.0 or worm_trail_points.size() < 3:
+		return
+
+	var push_dir = global_position - impact_position
+	if push_dir == Vector2.ZERO:
+		push_dir = impact_velocity.normalized()
+	if push_dir == Vector2.ZERO:
+		push_dir = Vector2.RIGHT.rotated(rotation)
+	push_dir = push_dir.normalized()
+
+	for i in range(1, worm_trail_points.size()):
+		var t = float(i) / float(max(worm_trail_points.size() - 1, 1))
+		var distance = worm_trail_points[i].distance_to(impact_position)
+		var falloff = clamp(1.0 - distance / 140.0, 0.0, 1.0)
+		var tail_weight = sin(t * PI)
+		worm_trail_points[i] += push_dir * falloff * tail_weight * lerp(8.0, 22.0, worm_strength)
+		if impact_velocity != Vector2.ZERO:
+			worm_trail_points[i] += impact_velocity.normalized() * falloff * tail_weight * 6.0
+
+func _get_obstacle_avoidance(base_dir: Vector2) -> Vector2:
+	var forward = base_dir.normalized()
+	if forward == Vector2.ZERO:
+		forward = Vector2.RIGHT.rotated(rotation)
+
+	var side = Vector2(-forward.y, forward.x)
+	var avoidance = Vector2.ZERO
+	var lookahead = OBSTACLE_AVOID_LOOKAHEAD * (0.75 + clamp(linear_velocity.length() / max(_get_effective_speed(), 1.0), 0.0, 1.0))
+
+	for obstacle in get_tree().get_nodes_in_group("obstacles"):
+		if !is_instance_valid(obstacle):
+			continue
+		var to_obstacle = obstacle.global_position - global_position
+		var ahead = to_obstacle.dot(forward)
+		var obstacle_radius = float(obstacle.get("radius")) if obstacle.get("radius") != null else 48.0
+		var avoid_radius = obstacle_radius + OBSTACLE_AVOID_MARGIN * _get_visual_size_scale()
+
+		if ahead < -avoid_radius or ahead > lookahead + avoid_radius:
+			continue
+
+		var lateral = to_obstacle.dot(side)
+		var abs_lateral = abs(lateral)
+		if abs_lateral > avoid_radius:
+			continue
+
+		var side_sign = -1.0 if lateral > 0.0 else 1.0
+		if abs_lateral < 1.0:
+			side_sign = 1.0 if sin(age + float(obstacle.get_instance_id() % 13)) >= 0.0 else -1.0
+		var path_weight = 1.0 - clamp(abs_lateral / avoid_radius, 0.0, 1.0)
+		var ahead_weight = 1.0 - clamp(max(ahead, 0.0) / max(lookahead, 1.0), 0.0, 1.0) * 0.45
+		avoidance += side * side_sign * path_weight * ahead_weight * 2.8
+
+		var distance = max(to_obstacle.length(), 0.001)
+		if distance < avoid_radius:
+			avoidance -= to_obstacle / distance * (1.0 - distance / avoid_radius) * 3.5
+
+	return avoidance
+
+>>>>>>> Stashed changes
 func _get_effective_current_force() -> float:
 	return CURRENT_FORCE * pow(_size_factor(), 0.35)
 
@@ -829,6 +904,14 @@ func _physics_process(delta):
 			# Сильное отталкивание при блуждании или побеге (чтобы скользить по стене, а не биться в нее)
 			desired_dir = (desired_dir + avoid_dir * 2.5).normalized()
 
+<<<<<<< Updated upstream
+=======
+	var obstacle_avoid_dir = _get_obstacle_avoidance(desired_dir)
+	if obstacle_avoid_dir != Vector2.ZERO:
+		is_active_steering = true
+		desired_dir = (desired_dir + obstacle_avoid_dir).normalized()
+
+>>>>>>> Stashed changes
 	var worm_strength = _get_worm_strength()
 	if worm_strength > 0.0:
 		desired_dir = _get_worm_swim_direction(desired_dir, current_dir, is_active_steering)
@@ -864,6 +947,9 @@ func _sample_liquid_current(pos: Vector2, time: float) -> Vector2:
 func _on_body_entered(body):
 	if is_dying or pending_death or is_being_digested:
 		return
+	if is_instance_valid(body) and (body.is_in_group("cells") or body.is_in_group("obstacles")):
+		var impact_velocity = body.linear_velocity if body is RigidBody2D else Vector2.ZERO
+		_bend_worm_trail_from_impact(body.global_position, impact_velocity)
 	if body.is_in_group("cells") and body != self:
 		if body.is_dying or body.pending_death or body.is_being_digested:
 			return
@@ -1182,7 +1268,11 @@ func _create_split_bud(new_genes: Dictionary):
 		split_bud.material.set_shader_parameter("shape_tendrils", new_genes.get("shape_tendrils", 0.0))
 		split_bud.material.set_shader_parameter("shape_lobes", new_genes.get("shape_lobes", 0.0))
 		split_bud.material.set_shader_parameter("shape_boxy", new_genes.get("shape_boxy", 0.0))
+<<<<<<< Updated upstream
 		split_bud.material.set_shader_parameter("shape_worm", new_genes.get("shape_worm", 0.0) * 0.08)
+=======
+		split_bud.material.set_shader_parameter("shape_worm", new_genes.get("shape_worm", 0.0) * 0.18)
+>>>>>>> Stashed changes
 		split_bud.material.set_shader_parameter("shape_spiral", new_genes.get("shape_spiral", 0.0) * 0.35)
 
 func _set_split_bud_progress(value: float):

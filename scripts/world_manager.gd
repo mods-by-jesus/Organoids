@@ -2,12 +2,21 @@ extends Node
 
 @export var food_scene: PackedScene = preload("res://scenes/food.tscn")
 @export var cell_scene: PackedScene = preload("res://scenes/cell.tscn")
+@export var obstacle_scene: PackedScene = preload("res://scenes/drift_obstacle.tscn")
+@export var food_grower_scene: PackedScene = preload("res://scenes/food_grower.tscn")
 
 @export var max_food = 50
 @export var initial_cells = 8
+<<<<<<< Updated upstream
+=======
+@export var initial_obstacles = 6
+@export var initial_food_growers = 2
+>>>>>>> Stashed changes
 @export var initial_worm_fraction = 0.08
 @export var food_spawn_margin = 80.0
 @export var cell_spawn_margin = 120.0
+@export var obstacle_spawn_margin = 180.0
+@export var food_grower_spawn_margin = 240.0
 @export var spatial_cell_size = 384.0
 
 @onready var arena = get_parent()
@@ -38,12 +47,18 @@ func _ready():
 		# Масштабируем лимиты
 		max_food = int(max_food * area_factor)
 		initial_cells = int(initial_cells * area_factor)
+		initial_obstacles = int(initial_obstacles * size_ratio * 1.1)
+		initial_food_growers = max(2, int(initial_food_growers * size_ratio * 0.75))
 		
 		# Делаем спавн чуть более разнесенным для больших арен
 		food_spawn_margin = 80.0 * clamp(size_ratio, 1.0, 3.0)
 		cell_spawn_margin = 120.0 * clamp(size_ratio, 1.0, 3.0)
+		obstacle_spawn_margin = 180.0 * clamp(size_ratio, 1.0, 3.0)
+		food_grower_spawn_margin = 240.0 * clamp(size_ratio, 1.0, 3.0)
 		
 	_spawn_initial_population()
+	_spawn_initial_obstacles()
+	_spawn_initial_food_growers()
 
 func _process(delta):
 	food_timer += delta
@@ -56,12 +71,38 @@ func _spawn_initial_population():
 	var guaranteed_worms = max(1, int(round(initial_cells * initial_worm_fraction)))
 	for i in range(initial_cells):
 		spawn_cell(i < guaranteed_worms)
+<<<<<<< Updated upstream
+=======
+
+func _spawn_initial_obstacles():
+	for i in range(initial_obstacles):
+		spawn_obstacle()
+
+func _spawn_initial_food_growers():
+	spawn_food_grower(true)
+	for i in range(max(initial_food_growers - 1, 0)):
+		spawn_food_grower(false)
+>>>>>>> Stashed changes
 
 func spawn_food():
 	var food = food_scene.instantiate()
 	food.position = _random_position_inside_arena(food_spawn_margin)
 	get_parent().call_deferred("add_child", food)
 
+<<<<<<< Updated upstream
+=======
+func spawn_obstacle():
+	var obstacle = obstacle_scene.instantiate()
+	obstacle.position = _random_position_inside_arena(obstacle_spawn_margin)
+	get_parent().call_deferred("add_child", obstacle)
+
+func spawn_food_grower(make_giant: bool = false):
+	var grower = food_grower_scene.instantiate()
+	grower.is_giant = make_giant
+	grower.position = _random_position_inside_arena(food_grower_spawn_margin if make_giant else obstacle_spawn_margin)
+	get_parent().call_deferred("add_child", grower)
+
+>>>>>>> Stashed changes
 func spawn_cell(force_worm: bool = false):
 	var cell = cell_scene.instantiate()
 	cell.position = _random_position_inside_arena(cell_spawn_margin)

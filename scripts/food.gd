@@ -7,8 +7,15 @@ extends Area2D
 
 var rotation_speed: float = 0.0
 var current_speed: float = 0.0
+var external_velocity = Vector2.ZERO
 var world_manager: Node = null
 var spatial_update_timer = 0.0
+<<<<<<< Updated upstream
+=======
+var growth_anchor: Node2D = null
+var growth_anchor_local_position = Vector2.ZERO
+var is_growth_attached = false
+>>>>>>> Stashed changes
 
 func _ready():
 	add_to_group("food")
@@ -38,10 +45,26 @@ func _ready():
 func _process(delta):
 	# Вращение еды
 	rotation += rotation_speed * delta
+
+	if is_growth_attached:
+		if is_instance_valid(growth_anchor):
+			global_position = growth_anchor.to_global(growth_anchor_local_position)
+			spatial_update_timer -= delta
+			if spatial_update_timer <= 0.0 and world_manager and world_manager.has_method("update_food_spatial"):
+				spatial_update_timer = 0.2
+				world_manager.update_food_spatial(self)
+		else:
+			is_growth_attached = false
+		return
 	
 	# Мягкое плавание по течению жидкости
 	var current = _sample_liquid_current(global_position, Time.get_ticks_msec() * 0.001)
+<<<<<<< Updated upstream
 	global_position = _clamp_to_arena(global_position + current * current_speed * delta, 12.0)
+=======
+	global_position = _clamp_to_arena(global_position + (current * current_speed + external_velocity) * delta, 12.0)
+	external_velocity = external_velocity.move_toward(Vector2.ZERO, 45.0 * delta)
+>>>>>>> Stashed changes
 	spatial_update_timer -= delta
 	if spatial_update_timer <= 0.0 and world_manager and world_manager.has_method("update_food_spatial"):
 		spatial_update_timer = 0.2
@@ -80,6 +103,30 @@ func _on_body_entered(body):
 func _on_area_entered(area):
 	pass
 
+<<<<<<< Updated upstream
+=======
+func push_from_obstacle(obstacle_position: Vector2, obstacle_radius: float, obstacle_velocity: Vector2, strength: float):
+	if is_growth_attached:
+		return
+	var away = global_position - obstacle_position
+	var distance = max(away.length(), 0.001)
+	var push_range = obstacle_radius + 22.0 * max(scale.x, scale.y)
+	if distance > push_range:
+		return
+	var overlap = 1.0 - clamp(distance / push_range, 0.0, 1.0)
+	var push_dir = away / distance
+	external_velocity += push_dir * strength * overlap
+	external_velocity += obstacle_velocity * 0.55 * overlap
+	external_velocity = external_velocity.limit_length(125.0)
+
+func set_growth_anchor(anchor: Node2D, local_position: Vector2):
+	growth_anchor = anchor
+	growth_anchor_local_position = local_position
+	is_growth_attached = true
+	current_speed = 0.0
+	external_velocity = Vector2.ZERO
+
+>>>>>>> Stashed changes
 func can_be_eaten_by(body) -> bool:
 	if !is_instance_valid(body):
 		return false

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://8bo6k43gm6hu"
-path="res://.godot/imported/phagocytosis.png-344cc77b870bc3ad44b106c234785954.ctex"
+uid="uid://dq8twim6hvbcm"
+path="res://.godot/imported/icon-species-dead.png-41f4c16721c73196f99cf09b9c54598b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://phagocytosis.png"
-dest_files=["res://.godot/imported/phagocytosis.png-344cc77b870bc3ad44b106c234785954.ctex"]
+source_file="res://sprites/ui/icon-species-dead.png"
+dest_files=["res://.godot/imported/icon-species-dead.png-41f4c16721c73196f99cf09b9c54598b.ctex"]
 
 [params]
 

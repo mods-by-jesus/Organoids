@@ -131,6 +131,7 @@ var digestion_duration = 0.0
 var is_being_digested = false
 var digesting_predator: Node2D = null
 var species_id: int = 0
+var parent_species_id: int = 0
 var species_color: Color = Color(0.0, 0.0, 0.0, 0.0)
 var species_name: String = ""
 var species_origin_genes: Dictionary = {}
@@ -302,11 +303,14 @@ func _should_form_new_species(new_genes: Dictionary) -> bool:
 	if species_origin_genes.is_empty():
 		return false
 
+	var diet_changed = _get_trophic_class(species_origin_genes) != _get_trophic_class(new_genes)
+	if diet_changed:
+		return true
+
 	var distance = _get_gene_distance(species_origin_genes, new_genes)
 	if distance >= SPECIATION_STRONG_DISTANCE_THRESHOLD:
 		return true
 
-	var diet_changed = _get_trophic_class(species_origin_genes) != _get_trophic_class(new_genes)
 	var shape_distance = (
 		abs(float(species_origin_genes.get("shape_elongation", 0.0)) - float(new_genes.get("shape_elongation", 0.0))) +
 		abs(float(species_origin_genes.get("shape_spikiness", 0.0)) - float(new_genes.get("shape_spikiness", 0.0))) +
@@ -318,8 +322,6 @@ func _should_form_new_species(new_genes: Dictionary) -> bool:
 		abs(float(species_origin_genes.get("shape_spiral", 0.0)) - float(new_genes.get("shape_spiral", 0.0)))
 	) / 8.0
 
-	if diet_changed and distance >= SPECIATION_DIET_DISTANCE_THRESHOLD:
-		return true
 	if shape_distance >= SPECIATION_SHAPE_DISTANCE_THRESHOLD:
 		return true
 	return distance >= SPECIATION_DISTANCE_THRESHOLD
@@ -1520,7 +1522,7 @@ func _draw():
 		var ring_color = Color(1.0, 0.48, 0.12, 0.35) # Тонкое оранжевое кольцо
 		draw_arc(Vector2.ZERO, fear_range, 0.0, TAU, 48, ring_color, 1.5, true)
 
-	if is_selected and is_instance_valid(target):
+	if is_selected and is_instance_valid(target) and target.is_inside_tree():
 		var local_target_pos = to_local(target.global_position)
 		var line_color = Color(0.4, 1.0, 0.4, 0.45) # Зеленый для еды
 

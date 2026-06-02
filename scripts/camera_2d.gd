@@ -89,3 +89,9 @@ func _zoom_at_mouse(factor):
 		zoom = Vector2(next_zoom, next_zoom)
 		var new_mouse_pos = get_global_mouse_position()
 		global_position += (mouse_pos - new_mouse_pos)
+
+func pan_to_position(target_pos: Vector2, duration: float = 0.6):
+	var tween = create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "global_position", target_pos, duration)

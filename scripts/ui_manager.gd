@@ -11,6 +11,9 @@ class SpeciesPreview:
 	extends Control
 
 	const CELL_SHADER = preload("res://shaders/cell.gdshader")
+	const ICON_BIOTROPH = preload("res://sprites/ui/gene-biotroph.png")
+	const ICON_HEMIBIOTROPH = preload("res://sprites/ui/gene-hemibiotroph.png")
+	const ICON_NECROTROPH = preload("res://sprites/ui/gene-necrotroph.png")
 
 	var species_id = 0
 	var species_color: Color = Color.WHITE
@@ -27,6 +30,7 @@ class SpeciesPreview:
 	var asymmetry = 0.12
 	var nucleus_size = 0.3
 	var bioluminescence = 0.0
+	var aggressiveness = 0.0
 	var shader_material: ShaderMaterial = null
 	var last_time_multiplier := -1.0
 
@@ -68,6 +72,58 @@ class SpeciesPreview:
 		_update_preview_time_multiplier(true)
 		shader_rect.material = shader_material
 		add_child(shader_rect)
+
+		# Иконка трофического типа в правом нижнем углу
+		var icon_rect = TextureRect.new()
+		icon_rect.name = "TrophicIcon"
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_rect.custom_minimum_size = Vector2(16, 16)
+		icon_rect.anchor_left = 1.0
+		icon_rect.anchor_top = 1.0
+		icon_rect.anchor_right = 1.0
+		icon_rect.anchor_bottom = 1.0
+		icon_rect.offset_left = -18.0
+		icon_rect.offset_top = -18.0
+		icon_rect.offset_right = -2.0
+		icon_rect.offset_bottom = -2.0
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		add_child(icon_rect)
+
+		# Счетчик представителей в левом верхнем углу
+		var count_label = Label.new()
+		count_label.name = "CountLabel"
+		count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		count_label.add_theme_font_size_override("font_size", 10)
+		count_label.add_theme_color_override("font_color", Color(0.92, 0.96, 0.96, 0.95))
+		count_label.anchor_left = 0.0
+		count_label.anchor_top = 0.0
+		count_label.anchor_right = 0.0
+		count_label.anchor_bottom = 0.0
+		count_label.offset_left = 4.0
+		count_label.offset_top = 2.0
+		add_child(count_label)
+
+		update_trophic_icon()
+
+	func update_trophic_icon():
+		var icon_rect = get_node_or_null("TrophicIcon")
+		if icon_rect:
+			var tex = ICON_BIOTROPH
+			var color = Color(0.92, 1.0, 0.92) # Слабый оттенок зеленого, почти белый
+			if aggressiveness > 0.6:
+				tex = ICON_NECROTROPH
+				color = Color(1.0, 0.92, 0.92) # Слабый оттенок красного, почти белый
+			elif aggressiveness >= HEMIBIOTROPH_AGGRESSION_THRESHOLD:
+				tex = ICON_HEMIBIOTROPH
+				color = Color(1.0, 1.0, 0.92) # Слабый оттенок желтого, почти белый
+			icon_rect.texture = tex
+			icon_rect.modulate = color
+
+	func update_count(count: int):
+		var count_label = get_node_or_null("CountLabel")
+		if count_label:
+			count_label.text = str(count)
 
 	func _process(_delta):
 		_update_preview_time_multiplier()
@@ -147,6 +203,8 @@ var species_cards = {}
 var species_refresh_timer = 0.0
 var species_panel_signature = ""
 var world_manager: Node = null
+var _scroll_target: float = 0.0
+var _scroll_speed: float = 5.0
 
 func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -200,6 +258,15 @@ func _process(_delta):
 		if panel.visible:
 			panel.hide()
 		selected_cell = null
+
+	# Плавный скролл
+	if is_instance_valid(species_scroll):
+		var current := float(species_scroll.scroll_vertical)
+		var diff := _scroll_target - current
+		if abs(diff) > 0.5:
+			species_scroll.scroll_vertical = int(current + diff * min(_scroll_speed * _delta, 1.0))
+		else:
+			species_scroll.scroll_vertical = int(_scroll_target)
 
 func _input(event):
 	if event is InputEventKey and event.pressed and !event.echo:
@@ -321,6 +388,13 @@ func select_cell(cell):
 	selected_cell = cell
 	if !cell:
 		panel.hide()
+	else:
+		var cell_species_id = int(cell.get("species_id"))
+		if selected_species_id != cell_species_id:
+			selected_species_id = cell_species_id
+			species_panel_signature = "" # Сбрасываем подпись панели, чтобы форсировать обновление стилей/масштаба карточек
+			_update_species_panel_v2(true)
+			_redraw_cells()
 
 func _build_fps_label():
 	fps_label = Label.new()
@@ -407,13 +481,22 @@ func _build_species_panel():
 	species_scroll.gui_input.connect(Callable(self, "_on_species_panel_gui_input"))
 	vbox.add_child(species_scroll)
 
+	# MarginContainer даёт отступ по краям, чтобы масштабированные карточки не обрезались внутри видимой области
+	var margin_wrap = MarginContainer.new()
+	margin_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin_wrap.add_theme_constant_override("margin_left", 6)
+	margin_wrap.add_theme_constant_override("margin_right", 6)
+	margin_wrap.add_theme_constant_override("margin_top", 6)
+	margin_wrap.add_theme_constant_override("margin_bottom", 6)
+	species_scroll.add_child(margin_wrap)
+
 	species_list = GridContainer.new()
 	species_list.columns = 3
 	species_list.add_theme_constant_override("h_separation", 8)
 	species_list.add_theme_constant_override("v_separation", 8)
 	species_list.mouse_filter = Control.MOUSE_FILTER_STOP
 	species_list.gui_input.connect(Callable(self, "_on_species_panel_gui_input"))
-	species_scroll.add_child(species_list)
+	margin_wrap.add_child(species_list)
 
 func _make_panel_style() -> StyleBoxFlat:
 	var style = StyleBoxFlat.new()
@@ -539,9 +622,11 @@ func _sync_species_cards(ids: Array, species: Dictionary, structure_changed: boo
 
 func _add_species_card(id: int, data: Dictionary):
 	var visual_color = data.get("visual_color", data["color"])
+	var is_selected = id == selected_species_id
 	var button = Button.new()
 	button.focus_mode = Control.FOCUS_NONE
 	button.custom_minimum_size = Vector2(78, 100)
+	button.pivot_offset = Vector2(39, 50)
 	button.text = ""
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.gui_input.connect(Callable(self, "_on_species_card_gui_input").bind(id))
@@ -556,7 +641,7 @@ func _add_species_card(id: int, data: Dictionary):
 	var preview = SpeciesPreview.new()
 	preview.species_id = id
 	preview.species_color = visual_color
-	preview.is_selected = id == selected_species_id
+	preview.is_selected = is_selected
 	preview.elongation = data["elongation"] / max(data["count"], 1)
 	preview.spikiness = data["spikiness"] / max(data["count"], 1)
 	preview.amoeboid = data["amoeboid"] / max(data["count"], 1)
@@ -569,6 +654,7 @@ func _add_species_card(id: int, data: Dictionary):
 	preview.asymmetry = data["asymmetry"] / max(data["count"], 1)
 	preview.nucleus_size = data["nucleus_size"] / max(data["count"], 1)
 	preview.bioluminescence = data["bioluminescence"] / max(data["count"], 1)
+	preview.aggressiveness = data.get("aggressiveness", 0.0) / max(data["count"], 1)
 	preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	item_box.add_child(preview)
 
@@ -582,6 +668,16 @@ func _add_species_card(id: int, data: Dictionary):
 
 	button.set_meta("species_preview", preview)
 	button.set_meta("species_label", label)
+	
+	# Обновляем значения
+	label.text = _get_species_display_name(id, data)
+	preview.update_count(data["count"])
+	preview.update_trophic_icon()
+
+	# Инициализация поворота и z_index
+	button.rotation = 0.0
+	button.z_index = 0
+
 	return button
 
 func _update_species_card(button: Button, id: int, data: Dictionary):
@@ -589,16 +685,25 @@ func _update_species_card(button: Button, id: int, data: Dictionary):
 	var is_selected = id == selected_species_id
 	var visual_color = data.get("visual_color", data["color"])
 	button.tooltip_text = "%s: %d" % [_get_species_display_name(id, data), count]
+	
+	# Применяем z_index и стиль при выборе
+	button.custom_minimum_size = Vector2(78, 100)
+	button.pivot_offset = Vector2(39, 50)
+	button.scale = Vector2(1.0, 1.0)
+	button.rotation = 0.0
+	
 	if is_selected:
+		button.z_index = 1
 		button.add_theme_stylebox_override("normal", _make_species_button_style(visual_color, 0.16))
 		button.add_theme_stylebox_override("hover", _make_species_button_style(visual_color, 0.22))
 	else:
+		button.z_index = 0
 		button.add_theme_stylebox_override("normal", _make_species_button_style(Color(0.8, 0.9, 0.9, 1.0), 0.02))
 		button.add_theme_stylebox_override("hover", _make_species_button_style(visual_color, 0.10))
 
 	var label = button.get_meta("species_label", null)
 	if is_instance_valid(label):
-		label.text = "%s\n%d" % [_get_species_display_name(id, data), count]
+		label.text = _get_species_display_name(id, data)
 
 	var preview = button.get_meta("species_preview", null)
 	if is_instance_valid(preview):
@@ -617,6 +722,7 @@ func _update_species_card(button: Button, id: int, data: Dictionary):
 		preview.asymmetry = data["asymmetry"] / count
 		preview.nucleus_size = data["nucleus_size"] / count
 		preview.bioluminescence = data["bioluminescence"] / count
+		preview.aggressiveness = data.get("aggressiveness", 0.0) / count
 		if preview.shader_material:
 			preview.shader_material.set_shader_parameter("base_color", Vector3(visual_color.r, visual_color.g, visual_color.b))
 			preview.shader_material.set_shader_parameter("deformation", 0.045 + preview.roughness * 0.20)
@@ -634,6 +740,8 @@ func _update_species_card(button: Button, id: int, data: Dictionary):
 			preview.shader_material.set_shader_parameter("shape_boxy", preview.boxy)
 			preview.shader_material.set_shader_parameter("shape_worm", preview.worm)
 			preview.shader_material.set_shader_parameter("shape_spiral", preview.spiral)
+		preview.update_trophic_icon()
+		preview.update_count(data["count"])
 		preview.queue_redraw()
 
 func _get_species_stats() -> Dictionary:
@@ -667,7 +775,8 @@ func _get_species_stats() -> Dictionary:
 				"roughness": 0.0,
 				"asymmetry": 0.0,
 				"nucleus_size": 0.0,
-				"bioluminescence": 0.0
+				"bioluminescence": 0.0,
+				"aggressiveness": 0.0
 			}
 		species[id]["count"] += 1
 		species[id]["elongation"] += cell.genes.get("shape_elongation", 0.0)
@@ -682,6 +791,7 @@ func _get_species_stats() -> Dictionary:
 		species[id]["asymmetry"] += cell.genes.get("membrane_asymmetry", 0.12)
 		species[id]["nucleus_size"] += cell.genes.get("nucleus_size", 0.3)
 		species[id]["bioluminescence"] += cell.genes.get("bioluminescence", 0.0)
+		species[id]["aggressiveness"] += cell.genes.get("aggressiveness", 0.0)
 	return species
 
 func _get_species_display_name(id: int, data: Dictionary) -> String:
@@ -692,19 +802,39 @@ func _get_species_display_name(id: int, data: Dictionary) -> String:
 
 func _on_species_button_pressed(id: int):
 	selected_species_id = 0 if selected_species_id == id else id
+	species_panel_signature = "" # Сбрасываем подпись панели, чтобы форсировать обновление стилей/масштаба карточек
 	_update_species_panel_v2(true)
 	_redraw_cells()
 
 func _on_species_card_gui_input(event, id: int):
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			_on_species_button_pressed(id)
+			if event.double_click:
+				_pan_to_random_representative(id)
+			else:
+				_on_species_button_pressed(id)
 			get_viewport().set_input_as_handled()
 		else:
 			_on_species_panel_gui_input(event)
 
+func _pan_to_random_representative(id: int):
+	var representatives = []
+	for cell in _get_registered_cells():
+		if is_instance_valid(cell) and not cell.get("is_dying") and not cell.get("pending_death"):
+			if int(cell.get("species_id")) == id:
+				representatives.append(cell)
+	
+	if representatives.size() > 0:
+		var target_cell = representatives.pick_random()
+		select_cell(target_cell)
+		
+		var cam = get_viewport().get_camera_2d()
+		if cam and cam.has_method("pan_to_position"):
+			cam.pan_to_position(target_cell.global_position)
+
 func _clear_species_selection():
 	selected_species_id = 0
+	species_panel_signature = "" # Сбрасываем подпись панели
 	_update_species_panel_v2(true)
 	_redraw_cells()
 
@@ -731,8 +861,9 @@ func _on_species_panel_gui_input(event):
 func _scroll_species_list(direction: int):
 	if !is_instance_valid(species_scroll):
 		return
-	var step = 72
-	species_scroll.scroll_vertical = max(species_scroll.scroll_vertical + direction * step, 0)
+	var step = 88
+	var max_scroll = max(species_scroll.get_v_scroll_bar().max_value, 0)
+	_scroll_target = clamp(_scroll_target + direction * step, 0.0, max_scroll)
 
 func _redraw_cells():
 	for cell in _get_registered_cells():

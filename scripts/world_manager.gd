@@ -181,11 +181,16 @@ func _remove_species_stats(cell: Node2D):
 		species_stats.erase(id)
 
 func _make_empty_species_stats(cell: Node2D) -> Dictionary:
-	return {
+	var parent_id = 0
+	if cell.get("species_origin_genes") != null and !cell.species_origin_genes.is_empty():
+		parent_id = int(cell.get("species_id")) # default fallback or tracking logic
+
+	var new_stats = {
 		"count": 0,
 		"color": cell.get("species_color"),
 		"visual_color": cell._get_visual_base_color() if cell.has_method("_get_visual_base_color") else cell.get("species_color"),
 		"name": cell.get("species_name"),
+		"parent_id": cell.get("parent_species_id") if cell.get("parent_species_id") != null else 0,
 		"elongation": 0.0,
 		"spikiness": 0.0,
 		"amoeboid": 0.0,
@@ -197,8 +202,10 @@ func _make_empty_species_stats(cell: Node2D) -> Dictionary:
 		"roughness": 0.0,
 		"asymmetry": 0.0,
 		"nucleus_size": 0.0,
-		"bioluminescence": 0.0
+		"bioluminescence": 0.0,
+		"aggressiveness": 0.0
 	}
+	return new_stats
 
 func _accumulate_species_genes(stats: Dictionary, cell: Node2D, sign: float):
 	var cell_genes = cell.get("genes")
@@ -216,6 +223,7 @@ func _accumulate_species_genes(stats: Dictionary, cell: Node2D, sign: float):
 	stats["asymmetry"] += cell_genes.get("membrane_asymmetry", 0.12) * sign
 	stats["nucleus_size"] += cell_genes.get("nucleus_size", 0.3) * sign
 	stats["bioluminescence"] += cell_genes.get("bioluminescence", 0.0) * sign
+	stats["aggressiveness"] += cell_genes.get("aggressiveness", 0.0) * sign
 	if sign > 0.0 and cell.has_method("_get_visual_base_color"):
 		stats["visual_color"] = cell._get_visual_base_color()
 

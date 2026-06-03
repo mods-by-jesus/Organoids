@@ -292,6 +292,14 @@ var selected_species_snapshot_alive := false
 var world_shader_time_offset := 0.0
 var world_shader_frozen_time := 0.0
 
+# Drag state
+var _drag_info = {
+	"panel": {"dragging": false, "offset": Vector2.ZERO, "initial": Vector2.ZERO},
+	"time_panel": {"dragging": false, "offset": Vector2.ZERO, "initial": Vector2.ZERO},
+	"species_panel": {"dragging": false, "offset": Vector2.ZERO, "initial": Vector2.ZERO},
+	"species_ledger": {"dragging": false, "offset": Vector2.ZERO, "initial": Vector2.ZERO}
+}
+
 func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	panel.hide()
@@ -301,6 +309,11 @@ func _ready():
 	_build_extra_gene_rows()
 	_build_species_panel()
 	_build_species_ledger_overlay()
+	
+	# Сделать панели draggable
+	_make_panel_draggable($Control/Panel, "panel")
+	_make_panel_draggable($Control/TimePanel, "time_panel")
+	
 	if diet_label:
 		diet_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		diet_label.add_theme_font_size_override("font_size", 13)
@@ -835,6 +848,9 @@ func _build_species_panel():
 	species_panel.gui_input.connect(Callable(self, "_on_species_panel_gui_input"))
 	species_panel.add_theme_stylebox_override("panel", _make_panel_style())
 	root.add_child(species_panel)
+	
+	# Делаем панель видов draggable
+	_make_panel_draggable(species_panel, "species_panel")
 
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
@@ -928,6 +944,9 @@ func _build_species_ledger_overlay():
 	species_ledger_overlay.add_theme_stylebox_override("panel", _make_panel_style())
 	species_ledger_overlay.visible = false
 	root.add_child(species_ledger_overlay)
+	
+	# Делаем журнал видов draggable
+	_make_panel_draggable(species_ledger_overlay, "species_ledger")
 
 	var outer = VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 10)
@@ -1731,3 +1750,85 @@ func _set_gene_threshold_marker(bar: ProgressBar, marker_name: String, threshold
 	var marker_x = clamp(bar.size.x * threshold - THRESHOLD_MARKER_WIDTH * 0.5, 0.0, max(bar.size.x - THRESHOLD_MARKER_WIDTH, 0.0))
 	marker.position = Vector2(marker_x, 0.0)
 	marker.size = Vector2(THRESHOLD_MARKER_WIDTH, marker_height)
+# ========== DRAGGABLE PANELS ==========
+
+func _make_panel_draggable(panel: Control, key: String):
+	if not is_instance_valid(panel):
+		return
+	# Загружаем сохранённую позицию
+	_load_panel_position(panel, key)
+	# Подключаем обработку ввода для перетаскивания
+	panel.gui_input.connect(_on_panel_drag_input.bind(key))
+
+func _on_panel_drag_input(event: InputEvent, key: String):
+	# Используем текущий ключ для доступа к _drag_info
+	if not _drag_info.has(key):
+		return
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			var panel = _get_panel_by_key(key)
+			if event.pressed and is_instance_valid(panel):
+				_drag_info[key]["dragging"] = true
+				_drag_info[key]["offset"] = event.global_position - panel.global_position
+				_drag_info[key]["initial"] = panel.global_position
+				get_viewport().set_input_as_handled()  # Не даём клику распространяться
+			else:
+				if _drag_info[key]["dragging"]:
+					_drag_info[key]["dragging"] = false
+					_save_panel_position(key)
+	elif event is InputEventMouseMotion and _drag_info[key].get("dragging", false):
+		get_viewport().set_input_as_handled()
+		var panel = _get_panel_by_key(key)
+		if is_instance_valid(panel):
+			panel.global_position = event.global_position - _drag_info[key]["offset"]
+
+func _get_panel_by_key(key: String) -> Control:
+	match key:
+		"panel":
+			return $Control/Panel
+		"time_panel":
+			return $Control/TimePanel
+		"species_panel":
+			return species_panel
+		"species_ledger":
+			return species_ledger_overlay
+	return null
+
+func _save_panel_position(key: String):
+	var panel = _get_panel_by_key(key)
+	if not is_instance_valid(panel):
+		return
+	var settings_key = "ui/panels/" + key
+	ProjectSettings.set_setting(settings_key + "/x", panel.global_position.x)
+	ProjectSettings.set_setting(settings_key + "/y", panel.global_position.y)
+	ProjectSettings.save()
+
+func _load_panel_position(panel: Control, key: String):
+	if not is_instance_valid(panel):
+		return
+	var settings_key = "ui/panels/" + key
+	if ProjectSettings.has_setting(settings_key + "/x"):
+		var x = ProjectSettings.get_setting(settings_key + "/x")
+		var y = ProjectSettings.get_setting(settings_key + "/y")
+		panel.global_position = Vector2(x, y)
+
+func is_pointer_over_draggable_panel() -> bool:
+	# Возвращает true если мышь над любой ВИДИМОЙ draggable панелью
+	var mouse_pos = get_viewport().get_mouse_position()
+	var control = $Control
+	if not is_instance_valid(control):
+		return false
+	
+	var panels = [
+		control.get_node_or_null("Panel"),
+		control.get_node_or_null("TimePanel"),
+		species_panel,
+		species_ledger_overlay
+	]
+	
+	for node in panels:
+		if is_instance_valid(node) and node.visible:
+			var rect = node.get_global_rect()
+			if rect.has_point(mouse_pos):
+				return true
+	return false

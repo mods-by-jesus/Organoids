@@ -51,3 +51,14 @@ move_right={
 
 rendering_device/driver.windows="d3d12"
 environment/defaults/default_clear_color=Color(0.08, 0.08, 0.08, 1)
+
+[ui]
+
+panels/time_panel/x=22.0
+panels/time_panel/y=24.0
+panels/species_panel/x=1535.0
+panels/species_panel/y=656.0
+panels/species_ledger/x=77.0
+panels/species_ledger/y=43.0
+panels/panel/x=1391.0
+panels/panel/y=35.0

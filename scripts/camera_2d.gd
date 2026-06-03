@@ -21,26 +21,30 @@ func _ready():
 func _input(event):
 	if event is InputEventMouseButton:
 		var over_species_panel = ui and ui.has_method("is_pointer_over_species_panel") and ui.is_pointer_over_species_panel()
+		var over_draggable = ui and ui.has_method("is_pointer_over_draggable_panel") and ui.is_pointer_over_draggable_panel()
 		var over_species_ledger = ui and ui.has_method("is_pointer_over_species_ledger") and ui.is_pointer_over_species_ledger()
+		
+		# Полная блокировка только для species ledger (модальное окно)
 		if over_species_ledger:
 			return
+			
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			if over_species_panel:
+			# Блокируем выбор клетки если клик на UI элементах
+			if over_species_panel or over_draggable:
 				return
 			_select_at_mouse()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			if ui and ui.has_method("clear_species_selection"):
 				ui.clear_species_selection()
-			if over_species_panel:
+			# Блокируем снятие выделения если клик на UI
+			if over_species_panel or over_draggable:
 				return
 			_deselect()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			if over_species_panel:
-				return
+			# Зум работает всегда, даже над панелями
 			_zoom_at_mouse(zoom_speed)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			if over_species_panel:
-				return
+			# Зум работает всегда, даже над панелями
 			_zoom_at_mouse(1.0 / zoom_speed)
 		elif event.button_index == MOUSE_BUTTON_MIDDLE:
 			dragging = event.pressed

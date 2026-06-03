@@ -637,7 +637,7 @@ func _get_gene_abilities(genes: Dictionary) -> Array:
 		abilities.append("фагоцитоз")
 	if genes.get("fear", 0.0) > FEAR_GENE_THRESHOLD and genes.get("aggressiveness", 0.0) < 0.6:
 		abilities.append("страх")
-	if genes.get("flagella_power", 0.0) > 0.35 and genes.get("shape_worm", genes.get("worm", 0.0)) > 0.48:
+	if genes.get("flagella_power", 0.0) > 0.35:
 		abilities.append("жгутик")
 	if genes.get("chemotaxis", 0.0) > 0.35:
 		abilities.append("хемотаксис")
@@ -660,7 +660,7 @@ func _infer_strategy_from_genes(genes: Dictionary) -> String:
 		return "ферментный хищник"
 	if phago >= PHAGOCYTOSIS_GENE_THRESHOLD and aggression >= 0.45 and amoeboid > 0.28:
 		return "амебоидный фагоцит"
-	if flagella > 0.35 and worm > 0.48 and chemotaxis > 0.25:
+	if flagella > 0.35 and chemotaxis > 0.25:
 		return "жгутиковый искатель"
 	if membrane > 0.58 and size > 1.15:
 		return "защищенный дрейфующий"
@@ -723,7 +723,7 @@ func _update_lysis_flagella_rows(genes: Dictionary):
 	if flagella_bar and flagella_text:
 		var flagella_gene = genes.get("flagella_power", 0.0)
 		var worm_gene = genes.get("shape_worm", genes.get("worm", 0.0))
-		var flagella_ready = flagella_gene > 0.35 and worm_gene > 0.48
+		var flagella_ready = flagella_gene > 0.35
 		flagella_bar.value = flagella_gene * 100.0
 		flagella_text.text = "%.2f%s" % [flagella_gene, " активен" if flagella_ready else ""]
 		flagella_text.tooltip_text = "Жгутик работает как развитие хвоста: ускоряет движение вперед, если форма достаточно червеобразная."

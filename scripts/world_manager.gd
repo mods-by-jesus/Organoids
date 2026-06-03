@@ -232,7 +232,8 @@ func spawn_cell(force_worm: bool = false):
 	cell.genes.shape_lobes = randf_range(0.0, 1.0) if randf() < 0.42 else randf_range(0.0, 0.25)
 	cell.genes.shape_boxy = randf_range(0.0, 1.0) if randf() < 0.16 else randf_range(0.0, 0.12)
 	cell.genes.shape_worm = randf_range(0.62, 1.0) if force_worm or randf() < 0.08 else randf_range(0.0, 0.10)
-	if cell.genes.shape_worm > 0.48:
+	# Жгутик развивается независимо от формы тела
+	if randf() < 0.25:
 		cell.genes.flagella_power = randf_range(0.35, 0.85)
 	cell.genes.shape_spiral = randf_range(0.50, 1.0) if randf() < (0.18 if force_worm else 0.08) else randf_range(0.0, 0.12)
 	cell.genes.fear = 0.0

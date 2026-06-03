@@ -56,7 +56,8 @@ const SOUND_BASE_MAX_DISTANCE = 900.0
 const SOUND_MIN_ZOOM_FACTOR = 0.08
 const CELL_SCENE = preload("res://scenes/cell.tscn")
 const FOOD_SCENE = preload("res://scenes/food.tscn")
-const WORM_BODY_THRESHOLD = 0.48
+const WORM_BODY_THRESHOLD = 0.48  # Порог для визуального тела червя
+const FLAGELLA_ACTIVATION_THRESHOLD = 0.35  # Порог активации жгутика
 const WORM_BODY_SEGMENT_COUNT = 9
 const WORM_TRAIL_MIN_DISTANCE = 1.0
 const WORM_TRAIL_MAX_POINTS = 72
@@ -560,7 +561,7 @@ func _refresh_gene_cache():
 	cached_effective_speed = genes.speed / pow(cached_size_factor, 0.45)
 	cached_effective_speed *= 1.0 + genes.get("shape_elongation", 0.0) * 0.25
 	cached_worm_strength = clamp(inverse_lerp(WORM_BODY_THRESHOLD, 1.0, genes.get("shape_worm", 0.0)), 0.0, 1.0)
-	cached_flagella_strength = cached_worm_strength * genes.get("flagella_power", 0.0)
+	cached_flagella_strength = clamp(genes.get("flagella_power", 0.0), 0.0, 1.0)  # Не зависит от shape_worm
 	cached_effective_speed *= 1.0 + genes.get("shape_worm", 0.0) * 0.12 + cached_flagella_strength * 0.35 + genes.get("shape_spiral", 0.0) * 0.08 - genes.get("shape_boxy", 0.0) * 0.10
 	cached_effective_turn_speed = genes.turn_speed / pow(cached_size_factor, 0.65)
 	cached_effective_turn_speed *= 1.0 + genes.get("shape_amoeboid", 0.0) * 0.30
@@ -712,7 +713,8 @@ func _get_effective_turn_speed() -> float:
 	return cached_effective_turn_speed
 
 func _get_worm_strength() -> float:
-	return cached_worm_strength
+	# Сила жгутика для визуала — зависит от flagella_power, не от shape_worm
+	return cached_flagella_strength
 
 func _get_worm_swim_direction(base_dir: Vector2, current_dir: Vector2, active_steering: bool) -> Vector2:
 	var worm_strength = _get_worm_strength()
@@ -785,7 +787,8 @@ func _prime_worm_trail(forward_dir: Vector2):
 
 func _update_worm_body_visual(_delta: float):
 	var worm_strength = _get_worm_strength()
-	if worm_strength <= 0.0 or is_dying or is_being_digested:
+	# Жгутик показывается только когда flagella_power > 0.35
+	if genes.get("flagella_power", 0.0) <= FLAGELLA_ACTIVATION_THRESHOLD or is_dying or is_being_digested:
 		_clear_worm_body_visual()
 		return
 
@@ -1202,7 +1205,7 @@ func _try_consume_food_node(food) -> bool:
 	return food.try_consume_by(self)
 
 func _process_cell_contact_checks(delta: float):
-	var needs_cell_contact = _can_hunt_cells() or _can_lyse_cells() or cached_worm_strength > 0.0
+	var needs_cell_contact = _can_hunt_cells() or _can_lyse_cells() or genes.get("flagella_power", 0.0) > FLAGELLA_ACTIVATION_THRESHOLD
 	if !needs_cell_contact:
 		return
 	cell_contact_check_timer -= delta
@@ -1234,7 +1237,7 @@ func _try_process_nearby_cell_contacts():
 		var contact_range = _get_cell_contact_range(body)
 		if global_position.distance_squared_to(body.global_position) > contact_range * contact_range:
 			continue
-		if cached_worm_strength > 0.0:
+		if genes.get("flagella_power", 0.0) > FLAGELLA_ACTIVATION_THRESHOLD:
 			var impact_velocity = body.linear_velocity if body is RigidBody2D else Vector2.ZERO
 			_bend_worm_trail_from_impact(body.global_position, impact_velocity)
 		if is_same_species(body):
@@ -1248,7 +1251,7 @@ func _try_process_nearby_cell_contacts():
 				return
 
 func _try_process_nearby_obstacle_impacts():
-	if cached_worm_strength <= 0.0:
+	if genes.get("flagella_power", 0.0) <= FLAGELLA_ACTIVATION_THRESHOLD:
 		return
 	var wm = _get_world_manager()
 	if !wm or !wm.has_method("get_obstacles_near"):
@@ -1536,7 +1539,12 @@ func _process_digestion(delta: float):
 
 func _clear_digestion_visual():
 	if is_instance_valid(digestion_visual):
-		digestion_visual.queue_free()
+		# FIX: Вызываем die(true) вместо queue_free() чтобы жертва правильно обработала смерть
+		# (eaten=true означает что клетка была съедена, поэтому не спавнится еда из останков)
+		var victim = digestion_visual
+		digestion_visual = null  # Сбрасываем ссылку перед вызовом die()
+		if is_instance_valid(victim):
+			victim.die(true)  # Правильная смерть вместо просто queue_free()
 	digestion_visual = null
 	digestion_visual_base_scale = Vector2.ONE
 	digestion_visual_center = Vector2.ZERO
@@ -2002,7 +2010,7 @@ func _get_visual_update_interval(is_selected: bool = false) -> float:
 	var zoom_value = _get_cached_camera_zoom_value()
 	var zoomed_out = clamp(inverse_lerp(0.65, 0.06, zoom_value), 0.0, 1.0)
 	var interval = lerp(VISUAL_UPDATE_INTERVAL, 0.18, zoomed_out)
-	if cached_worm_strength > 0.0:
+	if genes.get("flagella_power", 0.0) > FLAGELLA_ACTIVATION_THRESHOLD:
 		interval = min(interval, 0.11)
 	return interval
 
@@ -2030,12 +2038,22 @@ func _process(_delta):
 			selection_ring.visible = (ui and ui.selected_cell == self)
 			if is_instance_valid(perception_ring):
 				perception_ring.visible = false
+		# FIX: Проверяем смерть жертвы при достижении 0 энергии
+		if energy <= 0.0:
+			die(true)
+			return
+		# FIX: Проверяем что хищник ещё жив (защита от "осиротевшей" жертвы)
+		if digesting_predator != null and !is_instance_valid(digesting_predator):
+			# Хищник исчез — сбрасываем состояние переваривания
+			is_being_digested = false
+			digesting_predator = null
 		return
 
 	var ui = _get_ui_layer()
 	var is_selected = (ui and ui.selected_cell == self)
 	var visual_interval = _get_visual_update_interval(is_selected)
-	if cached_worm_strength > 0.0:
+	# Показываем жгутик когда flagella_power > 0.35
+	if genes.get("flagella_power", 0.0) > FLAGELLA_ACTIVATION_THRESHOLD:
 		if _should_update_worm_visual(is_selected):
 			if is_instance_valid(worm_body_visual):
 				worm_body_visual.visible = true

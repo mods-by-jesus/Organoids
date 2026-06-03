@@ -26,7 +26,9 @@ func _ready():
 		_start_underwater_ambient()
 
 func _start_underwater_ambient():
+	print("[DEBUG] _start_underwater_ambient called")
 	if is_instance_valid(underwater_ambient_player):
+		print("[DEBUG] underwater_ambient_player is valid, playing: ", underwater_ambient_player.playing)
 		if !underwater_ambient_player.playing:
 			underwater_ambient_player.play()
 		return
@@ -34,10 +36,19 @@ func _start_underwater_ambient():
 	underwater_ambient_player = AudioStreamPlayer.new()
 	underwater_ambient_player.name = "UnderwaterAmbientLoop"
 	underwater_ambient_player.stream = UNDERWATER_AMBIENT
+	if underwater_ambient_player.stream is AudioStreamWAV:
+		underwater_ambient_player.stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
 	underwater_ambient_player.volume_db = -8.0
 	underwater_ambient_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	
+	underwater_ambient_player.finished.connect(func():
+		print("[DEBUG] ambient sound finished, restarting loop")
+		underwater_ambient_player.play()
+	)
+	
 	add_child(underwater_ambient_player)
 	underwater_ambient_player.play()
+	print("[DEBUG] underwater_ambient_player started playing")
 
 func update_arena():
 	if !is_inside_tree(): return

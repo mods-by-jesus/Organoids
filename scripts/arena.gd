@@ -1,7 +1,7 @@
 @tool
 extends Node2D
 
-const UNDERWATER_AMBIENT_STREAM = preload("res://sounds/underwater-ambient-loop.wav")
+const UNDERWATER_AMBIENT = preload("res://sounds/underwater-ambient-loop.wav")
 
 @export_group("Arena Settings")
 @export var arena_size: float = 2048.0:
@@ -17,26 +17,27 @@ const UNDERWATER_AMBIENT_STREAM = preload("res://sounds/underwater-ambient-loop.
 @onready var grid = $BackgroundGrid
 @onready var walls = $World/Walls
 @onready var visual_border = $World/VisualBorder
-@onready var underwater_ambient = $UnderwaterAmbient
+
+var underwater_ambient_player: AudioStreamPlayer = null
 
 func _ready():
-	_start_underwater_ambient()
 	update_arena()
+	if !Engine.is_editor_hint():
+		_start_underwater_ambient()
 
 func _start_underwater_ambient():
-	if !underwater_ambient:
+	if is_instance_valid(underwater_ambient_player):
+		if !underwater_ambient_player.playing:
+			underwater_ambient_player.play()
 		return
-	var stream = UNDERWATER_AMBIENT_STREAM.duplicate()
-	if stream is AudioStreamWAV:
-		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		stream.loop_begin = 0
-		stream.loop_end = -1
-	underwater_ambient.stop()
-	underwater_ambient.process_mode = Node.PROCESS_MODE_ALWAYS
-	underwater_ambient.stream = stream
-	underwater_ambient.volume_db = -10.0
-	underwater_ambient.bus = "Master"
-	underwater_ambient.play()
+
+	underwater_ambient_player = AudioStreamPlayer.new()
+	underwater_ambient_player.name = "UnderwaterAmbientLoop"
+	underwater_ambient_player.stream = UNDERWATER_AMBIENT
+	underwater_ambient_player.volume_db = -8.0
+	underwater_ambient_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(underwater_ambient_player)
+	underwater_ambient_player.play()
 
 func update_arena():
 	if !is_inside_tree(): return

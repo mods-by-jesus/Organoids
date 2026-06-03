@@ -12,6 +12,8 @@ var spoke_count = 28
 var ring_count = 3
 var wobble_seed = 0.0
 var drift_spin = 0.0
+var spatial_update_timer = 0.0
+var food_push_timer = 0.0
 var base_color = Color(0.58, 0.72, 0.95, 0.34)
 var world_manager: Node = null
 
@@ -22,6 +24,9 @@ var world_manager: Node = null
 func _ready():
 	add_to_group("obstacles")
 	world_manager = get_parent().get_node_or_null("WorldManager")
+	if world_manager and world_manager.has_method("register_obstacle"):
+		world_manager.register_obstacle(self)
+	tree_exiting.connect(_on_tree_exiting)
 	can_sleep = false
 	radius = lerp(min_radius, max_radius, pow(randf(), 1.55))
 	rim_points = randi_range(30, 48)
@@ -46,6 +51,7 @@ func _ready():
 	angular_damp = 0.05
 	drift_spin = randf_range(0.035, 0.085) * (-1.0 if randf() < 0.5 else 1.0)
 	angular_velocity = drift_spin
+	food_push_timer = randf_range(0.02, 0.22)
 	queue_redraw()
 
 func _physics_process(delta):
@@ -56,7 +62,14 @@ func _physics_process(delta):
 
 	if linear_velocity.length() > max_drift_speed:
 		linear_velocity = linear_velocity.limit_length(max_drift_speed)
-	_push_nearby_food()
+	food_push_timer -= delta
+	if food_push_timer <= 0.0:
+		food_push_timer = randf_range(0.12, 0.22)
+		_push_nearby_food()
+	spatial_update_timer -= delta
+	if spatial_update_timer <= 0.0 and world_manager and world_manager.has_method("update_obstacle_spatial"):
+		spatial_update_timer = 0.18
+		world_manager.update_obstacle_spatial(self)
 
 	var clamped_position = _clamp_to_arena(global_position, radius + 8.0)
 	if clamped_position != global_position:
@@ -128,3 +141,7 @@ func _clamp_to_arena(pos: Vector2, margin: float) -> Vector2:
 		var half = arena_node.get("arena_size") / 2.0 - margin
 		return Vector2(clamp(pos.x, -half, half), clamp(pos.y, -half, half))
 	return pos
+
+func _on_tree_exiting():
+	if world_manager and world_manager.has_method("unregister_obstacle"):
+		world_manager.unregister_obstacle(self)

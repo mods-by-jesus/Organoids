@@ -10,6 +10,7 @@ uniform float nucleus_size = 0.3;
 uniform float bioluminescence = 0.0;
 uniform float motion_deform = 0.0;
 uniform vec2 motion_direction = vec2(1.0, 0.0);
+uniform float damage_flash = 0.0;
 uniform float split_pressure = 0.0;
 uniform float dissolve = 0.0;
 uniform float visual_padding = 1.65;
@@ -22,6 +23,7 @@ uniform float shape_boxy = 0.0;
 uniform float shape_worm = 0.0;
 uniform float shape_spiral = 0.0;
 uniform float time_multiplier = 1.0;
+uniform float time_offset = 0.0;
 
 float membrane_wave(float angle, float time) {
 	float primary = sin(angle * 3.0 + time * pulse_speed);
@@ -31,7 +33,7 @@ float membrane_wave(float angle, float time) {
 }
 
 void fragment() {
-	float t = TIME * time_multiplier;
+	float t = TIME * time_multiplier + time_offset;
 	vec2 uv = (UV * 2.0 - 1.0) * visual_padding;
 	vec2 swim_dir = normalize(motion_direction + vec2(0.001, 0.0));
 	float along_motion = dot(uv, swim_dir);
@@ -103,6 +105,7 @@ void fragment() {
 	color = mix(color, alive_color * 0.22, nucleus * 0.78);
 	color = mix(color, alive_color * 0.08, cleavage * 0.85);
 	color += alive_color * membrane_rim * (0.18 + membrane_roughness * 0.28);
+	color += vec3(1.0, 0.48, 0.18) * membrane_rim * damage_flash;
 	color += vec3(0.35, 0.8, 1.0) * bioluminescence * pow(cytoplasm, 3.0) * (0.35 + energy_ratio);
 
 	float cytoplasm_alpha = 0.52;

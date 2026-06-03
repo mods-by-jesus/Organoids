@@ -7,6 +7,8 @@ uniform float flow_speed = 0.08;
 uniform float flow_scale = 340.0;
 uniform float caustic_strength = 0.16;
 uniform float vignette_strength = 0.45;
+uniform float time_multiplier = 1.0;
+uniform float time_offset = 0.0;
 
 varying vec2 world_pos;
 
@@ -41,7 +43,7 @@ void vertex() {
 }
 
 void fragment() {
-	float time = TIME * flow_speed * 8.0;
+	float time = (TIME * time_multiplier + time_offset) * flow_speed * 8.0;
 	vec2 p = world_pos / flow_scale;
 	vec2 drift = vec2(sin(time * 0.23), cos(time * 0.19)) * 0.35;
 	vec2 warped = p + drift;

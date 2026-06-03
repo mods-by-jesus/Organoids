@@ -6,12 +6,14 @@ extends Camera2D
 var dragging = false
 var grid_material: ShaderMaterial
 var ui: CanvasLayer
+var world_manager: Node
 var last_grid_camera_offset = Vector2(1.0e20, 1.0e20)
 
 func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	make_current()
 	ui = get_tree().current_scene.get_node_or_null("UI")
+	world_manager = get_tree().current_scene.get_node_or_null("WorldManager")
 	var grid_node = get_tree().current_scene.find_child("BackgroundGrid", true)
 	if grid_node:
 		grid_material = grid_node.material
@@ -19,6 +21,9 @@ func _ready():
 func _input(event):
 	if event is InputEventMouseButton:
 		var over_species_panel = ui and ui.has_method("is_pointer_over_species_panel") and ui.is_pointer_over_species_panel()
+		var over_species_ledger = ui and ui.has_method("is_pointer_over_species_ledger") and ui.is_pointer_over_species_ledger()
+		if over_species_ledger:
+			return
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			if over_species_panel:
 				return
@@ -62,9 +67,14 @@ func _process(delta):
 
 func _select_at_mouse():
 	var mouse_pos = get_global_mouse_position()
-	var cells = ui.call("_get_registered_cells") if ui and ui.has_method("_get_registered_cells") else get_tree().get_nodes_in_group("cells")
+	var pick_radius = 100.0
+	var cells = []
+	if is_instance_valid(world_manager) and world_manager.has_method("get_cells_near"):
+		cells = world_manager.get_cells_near(mouse_pos, pick_radius)
+	else:
+		cells = ui.call("_get_registered_cells") if ui and ui.has_method("_get_registered_cells") else get_tree().get_nodes_in_group("cells")
 	var closest = null
-	var min_dist_sq = 10000.0
+	var min_dist_sq = pick_radius * pick_radius
 	
 	for cell in cells:
 		if !is_instance_valid(cell) or cell.get("is_dying") or cell.get("pending_death"):
@@ -89,6 +99,8 @@ func _zoom_at_mouse(factor):
 		zoom = Vector2(next_zoom, next_zoom)
 		var new_mouse_pos = get_global_mouse_position()
 		global_position += (mouse_pos - new_mouse_pos)
+		if ui and ui.has_method("_redraw_cells"):
+			ui._redraw_cells()
 
 func pan_to_position(target_pos: Vector2, duration: float = 0.6):
 	var tween = create_tween()

@@ -6,7 +6,6 @@
 [ext_resource type="Script" uid="uid://csm6c7uumsgx7" path="res://scripts/world_manager.gd" id="4_world_script"]
 [ext_resource type="Script" uid="uid://dqg56jx4nxh5l" path="res://scripts/ui_manager.gd" id="5_ui_script"]
 [ext_resource type="Shader" uid="uid://cc6xo60blp8vh" path="res://shaders/liquid_medium.gdshader" id="7_liquid_shader"]
-[ext_resource type="AudioStream" uid="uid://bfe64aex8tq0l" path="res://sounds/underwater-ambient-loop.wav" id="8_ambient_loop"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_liquid"]
 shader = ExtResource("7_liquid_shader")
@@ -16,6 +15,8 @@ shader_parameter/flow_speed = 0.08
 shader_parameter/flow_scale = 340.0
 shader_parameter/caustic_strength = 0.16
 shader_parameter/vignette_strength = 0.45
+shader_parameter/time_multiplier = 1.0
+shader_parameter/time_offset = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_grid"]
 shader = ExtResource("2_grid_shader")
@@ -37,10 +38,10 @@ fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.5, 0)
 
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_o6xl0"]
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tefeu"]
 particle_flag_disable_z = true
 emission_shape = 3
-emission_box_extents = Vector3(4096, 4096, 1)
+emission_box_extents = Vector3(8192, 8192, 1)
 direction = Vector3(0, -1, 0)
 spread = 180.0
 initial_velocity_min = 2.0
@@ -119,38 +120,34 @@ corner_radius_bottom_left = 2
 
 [node name="Main" type="Node2D" unique_id=782325201]
 script = ExtResource("1_arena_script")
-arena_size = 8192.0
+arena_size = 16384.0
 border_thickness = 64.0
 
 [node name="LiquidMedium" type="ColorRect" parent="." unique_id=1198607170]
 material = SubResource("ShaderMaterial_liquid")
-offset_left = -4096.0
-offset_top = -4096.0
-offset_right = 4096.0
-offset_bottom = 4096.0
+offset_left = -8192.0
+offset_top = -8192.0
+offset_right = 8192.0
+offset_bottom = 8192.0
 mouse_filter = 2
 
 [node name="BackgroundGrid" type="ColorRect" parent="." unique_id=527241965]
 material = SubResource("ShaderMaterial_grid")
-offset_left = -4096.0
-offset_top = -4096.0
-offset_right = 4096.0
-offset_bottom = 4096.0
+offset_left = -8192.0
+offset_top = -8192.0
+offset_right = 8192.0
+offset_bottom = 8192.0
 mouse_filter = 2
 
 [node name="BackgroundBubbles" type="GPUParticles2D" parent="." unique_id=1534655428]
 material = SubResource("CanvasItemMaterial_bubble")
-amount = 6400
+amount = 25600
 texture = SubResource("GradientTexture2D_bubble")
 lifetime = 60.0
 preprocess = 60.0
-visibility_rect = Rect2(-4096, -4096, 8192, 8192)
+visibility_rect = Rect2(-8192, -8192, 16384, 16384)
 local_coords = true
-process_material = SubResource("ParticleProcessMaterial_o6xl0")
-
-[node name="UnderwaterAmbient" type="AudioStreamPlayer" parent="." unique_id=1311093758]
-stream = ExtResource("8_ambient_loop")
-volume_db = -10.0
+process_material = SubResource("ParticleProcessMaterial_tefeu")
 
 [node name="WorldManager" type="Node" parent="." unique_id=235655544]
 script = ExtResource("4_world_script")
@@ -160,49 +157,49 @@ script = ExtResource("4_world_script")
 [node name="Walls" type="StaticBody2D" parent="World" unique_id=1995682695]
 
 [node name="Collision_Top" type="CollisionShape2D" parent="World/Walls" unique_id=1028618696]
-position = Vector2(0, -4096)
+position = Vector2(0, -8192)
 shape = SubResource("WorldBoundaryShape2D_N")
 
 [node name="Collision_Bottom" type="CollisionShape2D" parent="World/Walls" unique_id=807230501]
-position = Vector2(0, 4096)
+position = Vector2(0, 8192)
 shape = SubResource("WorldBoundaryShape2D_S")
 
 [node name="Collision_Left" type="CollisionShape2D" parent="World/Walls" unique_id=2043724951]
-position = Vector2(-4096, 0)
+position = Vector2(-8192, 0)
 shape = SubResource("WorldBoundaryShape2D_W")
 
 [node name="Collision_Right" type="CollisionShape2D" parent="World/Walls" unique_id=764604440]
-position = Vector2(4096, 0)
+position = Vector2(8192, 0)
 shape = SubResource("WorldBoundaryShape2D_E")
 
 [node name="VisualBorder" type="Node2D" parent="World" unique_id=1976885329]
 
 [node name="Line_Top" type="ColorRect" parent="World/VisualBorder" unique_id=1736704762]
-offset_left = -4160.0
-offset_top = -4160.0
-offset_right = 4160.0
-offset_bottom = -4096.0
+offset_left = -8256.0
+offset_top = -8256.0
+offset_right = 8256.0
+offset_bottom = -8192.0
 color = Color(0.3, 0.3, 0.3, 1)
 
 [node name="Line_Bottom" type="ColorRect" parent="World/VisualBorder" unique_id=1133150828]
-offset_left = -4160.0
-offset_top = 4096.0
-offset_right = 4160.0
-offset_bottom = 4160.0
+offset_left = -8256.0
+offset_top = 8192.0
+offset_right = 8256.0
+offset_bottom = 8256.0
 color = Color(0.3, 0.3, 0.3, 1)
 
 [node name="Line_Left" type="ColorRect" parent="World/VisualBorder" unique_id=2132281952]
-offset_left = -4160.0
-offset_top = -4096.0
-offset_right = -4096.0
-offset_bottom = 4096.0
+offset_left = -8256.0
+offset_top = -8192.0
+offset_right = -8192.0
+offset_bottom = 8192.0
 color = Color(0.3, 0.3, 0.3, 1)
 
 [node name="Line_Right" type="ColorRect" parent="World/VisualBorder" unique_id=471044770]
-offset_left = 4096.0
-offset_top = -4096.0
-offset_right = 4160.0
-offset_bottom = 4096.0
+offset_left = 8192.0
+offset_top = -8192.0
+offset_right = 8256.0
+offset_bottom = 8192.0
 color = Color(0.3, 0.3, 0.3, 1)
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=81173248]
